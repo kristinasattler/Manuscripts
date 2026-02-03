@@ -1,0 +1,332 @@
+# 1.3 One-Way ANOVA/Tukey HSD and create an aligned bar plot Figures 1, 2, Supplemental Figure 2)
+
+# Paste the code below into R Markdown file: 
+# Only edit lines with "EDIT:" at the start of the comment
+
+########################################################################################################################################
+### [**Chunk 00 - Install or update packages (if needed)**]{.underline}
+########################################################################################################################################
+
+```{r Chunk 00 - Install or update packages (if needed), eval=FALSE}
+install.packages("tidyverse")
+install.packages("openxlsx")
+install.packages("dplyr")
+install.packages("ggplot2")
+install.packages("ggpubr")
+install.packages("rstatix")
+install.packages("shiny")
+install.packages("colourPicker")
+install.packages("ggbreak")
+install.packages("ggbeeswarm")
+install.packages("ggpattern")
+install.packages("svglite")
+```
+
+########################################################################################################################################
+### [**Chunk 0 - Load packages and set working directory**]{.underline}
+########################################################################################################################################
+
+```{r Chunk 0 - Load packages and set working directory, message=FALSE}
+library(tidyverse)
+library(openxlsx)
+library(dplyr)
+library(ggplot2)
+library(ggpubr)
+library(rstatix)
+library(shiny)
+library(colourpicker)
+library(ggbreak)
+library(ggbeeswarm)
+library(ggpattern)
+library(scales)
+library(svglite)
+options(scipen = 999)                  # Converts all numbers to standard notation
+```
+
+########################################################################################################################################
+### [**Chunk 1 - Open data file, set Conditions, and set Condition order**]{.underline}
+########################################################################################################################################
+
+```{r Chunk 1 - Open data file and set Dynamic Variables}
+# Open data file with openxlsx and create an object
+S_file_path_save <- "/Pathway/to/my/data/file/folder"                          # EDIT: List the pathway to the raw data file [excluding the file]
+S_file_path_data <- "/Pathway/to/my/data/file/folder/file_name.xlsx"           # EDIT: List the pathway to the raw data file [including the file]
+
+S_plot_name <- "Plot_File_Output_Name"               # EDIT: Specify the name of the output file 
+
+A_raw_data <- read.xlsx(S_file_path_data,            # Open the raw data file
+                        sheet = "Sheet_Name",        # EDIT: Specify sheet (if applicable)
+                        rows = 51:61,                # EDIT: Specify rows (if applicable) *note: includes a header row
+                        cols = 17:18                 # EDIT: Specify columns (if applicable)
+                        )
+
+# Set dynamic variables
+V_Condition_Column <- "Cells"      # EDIT: Set the dynamic variable with the name of the condition column (experimental groups)
+V_Data_Column <- "Texas_Red"       # EDIT: Set the dynamic variable with the name of the column containing data
+
+V_Exp_Group1 <- "HAP1"             # EDIT: Set the dynamic variable to name Experimental group 1 (Control)
+V_Exp_Group2 <- "HAP1+NA"          # EDIT: Set the dynamic variable to name Experimental group 2
+V_Exp_Group3 <- "GNEko"            # EDIT: Set the dynamic variable to name Experimental group 3
+
+V_Group_List <- ls(pattern = "^V_Exp_Group\\d+")    # Collate experimental groups into a list based on a naming pattern for dynamic variables
+V_Group_List <- unlist(mget(sort(V_Group_List)))    # Sort the list into numeric order
+
+Ab_aesthetic_variables <- data.frame(                   # Create a data frame with aesthetic variables for the graph
+  Condition = V_Group_List,                             # Call the list of experimental groups 
+  V_light_color = c("#E34F6C", "#69cd87", "#7180bd"),   # EDIT: Set the light colors- these will be the colors of the bars of the graphs
+  V_dark_color = c("#5b0e1d", "#195927", "#13294d"),    # EDIT: Set the dark colors- these will be the colors of the bar outlines, shapes, and patterns
+  V_dot_shape = c(21, 22, 24),                          # EDIT: Set the shapes of the dots for each group
+  V_bar_pattern = c("none", "none", "none"),            # EDIT: Set the patterns of the bars for each group
+  stringsAsFactors = FALSE
+)
+colnames(Ab_aesthetic_variables)[1] <- V_Condition_Column # Rename the condition column to match V_Condition_Column
+
+V_Graph_Title <- NULL              # EDIT: Set the dynamic variable for the title of the graph
+V_X_Axis_Title <- NULL             # EDIT: Set the dynamic variable for the name of the X axis of the graph {NULL if no title}
+T_X_Axis_Labels <- FALSE           # EDIT: Set the dynamic variable to show X axis labels or not
+V_Y_Axis_Title <- NULL             # EDIT: Set the dynamic variable for the name of the Y axis of the graph
+T_Y_Dashed_Line <- FALSE           # EDIT: Add or remove a horizontal dashed line
+T_Log_Y_Axis <- FALSE              # EDIT: Toggle Y axis scale - TRUE = logarithmic scale; FALSE = linear scale
+
+Ab_sub_data <- A_raw_data %>%                                                           # Create a new data frame with raw data
+    select(all_of(c(V_Condition_Column, V_Data_Column)))                                # Select all available values
+
+Ab_sub_data <- Ab_sub_data %>%
+  left_join(Ab_aesthetic_variables, by = V_Condition_Column)
+
+Ab_sub_data[[V_Condition_Column]] <- as.factor(Ab_sub_data[[V_Condition_Column]])       # Set condition column as a factor
+Ab_sub_data[[V_Condition_Column]] <- factor(Ab_sub_data[[V_Condition_Column]],          # Set the levels of the experimental groups
+                                            levels = V_Group_List)
+Ab_sub_data[[V_Data_Column]] <- as.numeric(as.character(Ab_sub_data[[V_Data_Column]]))  # Set the data column values as numeric
+```
+
+########################################################################################################################################
+### [**Chunk 2 - Create a simple Statistics summary of the data**]{.underline}
+########################################################################################################################################
+
+-   [Options for summary Statistics](https://docs.google.com/document/d/12yir4iAo4Y_E7MXwwrNkXOmGA0i5PhgYC6ubD6SwfOs/edit?tab=t.rwcqfu7xrpqt)
+
+```{r Chunk 2 - Create a simple Statistics summary of the data}
+B_summary <- Ab_sub_data %>%                 # Create a new data frame called B_summary
+  group_by(.data[[V_Condition_Column]]) %>%  # Set the column to sort the groups by
+  summarise(                                 # Summarize these parameters for each group
+    Mean = mean(.data[[V_Data_Column]]),     # Calculate the mean value of each group
+    n = n(),                                 # Calculate the number of samples in each group
+    SD = sd(.data[[V_Data_Column]]),         # Calculate the standard deviation of each group
+    SE = SD / sqrt(n),                       # Calculate the standard error of each group
+    Min = min(.data[[V_Data_Column]]),       # Calculate the minimum value of each group
+    Max = max(.data[[V_Data_Column]])        # Calculate the maximum value of each group
+  )
+
+B_summary <- B_summary %>%
+  left_join(Ab_aesthetic_variables, by = V_Condition_Column)
+
+B_summary[[V_Condition_Column]] <- as.factor(B_summary[[V_Condition_Column]])       # Set condition column as a factor in B_summary
+B_summary[[V_Condition_Column]] <- factor(B_summary[[V_Condition_Column]],          # Set the levels of the experimental groups
+                                          levels = V_Group_List)
+```
+
+########################################################################################################################################
+### [**Chunk 3 - Run ANOVA/Tukey and collate results in a data frame**]{.underline}
+########################################################################################################################################
+
+```{r Chunk 3 - Run ANOVA/Tukey and collate results in a data frame}
+Ab_group_pairs <- as.list(as.data.frame(combn(V_Group_List, 2, simplify = FALSE))) # Create a list of all available pairs of experimental groups
+
+C_Results <- aov(                                                                  # Run a one-way ANOVA on the data
+  as.formula(paste(V_Data_Column, "~", V_Condition_Column)),                       # Compare the values in the data column grouped by the condition column
+  data = Ab_sub_data                                                               # Call data from the raw data frame
+)
+C_Results <- TukeyHSD(C_Results)                                                   # Run Tukey's HSD analysis on the ANOVA results
+
+D_results <- C_Results %>%                                                         # Combine results into a data frame
+  map_df(~as.data.frame(.x) %>% 
+           rownames_to_column("Comparison"), .id = "Factor") %>%
+  separate(Comparison, c("group1", "group2"), sep = "-") %>%
+  select(Factor, group1, group2, p_adj = `p adj`, diff:upr)
+```
+
+########################################################################################################################################
+### [**Chunk 4 - Set significance labels and dimensions of the graph**]{.underline}
+########################################################################################################################################
+```{r Chunk 4 - Set significance labels and dimensions of the graph}
+D_results <- D_results %>%                  # Add elements to the test result data frame
+  mutate(                                   # Function to create new columns
+    label = case_when(                      # Name the column and set the value under these conditions
+      `p_adj` <= 0.0001 ~ "****",           # If the "p adj" column is < 0.001, label with ****
+      `p_adj` <= 0.001 ~ "***",             # If the "p adj" column is < 0.01, label with ***
+      `p_adj` <= 0.01 ~ "**",               # If the "p adj" column is < 0.01, label with **
+      `p_adj` <= 0.05 ~ "*",                # If the "p adj" column is < 0.05, label with *
+      TRUE ~ "ns"                           # If the "p adj" column is > 0.05, label with ns
+      ))
+
+Db_results <- D_results %>%                                    # Filter out unnecessary statistical comparisons
+  filter(
+    !((group1 == V_Exp_Group2 & group2 == V_Exp_Group3) |
+        (group1 == V_Exp_Group3 & group2 == V_Exp_Group2)
+      ))
+  
+Db_results <- Db_results %>%                                   # Add columns containing graph specifications
+  mutate(
+    label_size = case_when(                                    # Create a conditional column called "label_size" for comparison brackets
+      label %in% c("****", "***", "**", "*") ~ "s",            # Label significant rows with "s"
+      label == "ns"                          ~ "ns",           # Label insignificant rows with "ns"
+      TRUE                                   ~ "ns"            # Label all other rows with "ns"
+    ),
+    y.position = c(19500, 23500),                              # EDIT: Set the y positions of the comparison brackets/labels
+    tip_length = c(0.06),                                      # EDIT: Specify the length of the comparison brackets tips
+    y_limit = 25000,                                           # EDIT: Set the height of the Y axis 
+  )
+```
+
+########################################################################################################################################
+### [**Chunk 5 - Create the Graph**]{.underline}
+########################################################################################################################################
+
+-   [Plot Theme Options](https://docs.google.com/document/d/12yir4iAo4Y_E7MXwwrNkXOmGA0i5PhgYC6ubD6SwfOs/edit?usp=sharing)
+
+```{r - Chunk 5 - Create the Graph}
+S_aligned_dot_plot <- ggplot(                             # Create the aligned dot plot using ggdotplot function
+  data = Ab_sub_data,                                     # Call the raw data frame
+  mapping = aes(x = .data[[V_Condition_Column]]),         # Set the x-axis to the conditions column dynamic variable
+  binwidth = 1                                            # EDIT: Control the spacing between groups
+  ) +
+  geom_col_pattern(                                       # Add bars displaying the average value of each group
+    data = B_summary,                                     # Call data from the B_summary data frame
+    aes(y = Mean,                                         # Set the Y value of each bar to the mean of each group
+        fill = V_light_color,                             # Fill the bars from the dynamic variable
+        pattern = V_bar_pattern,                          # Fill the patterns from the dynamic variable
+        color = V_dark_color,                             # Fill the bar outline colors from the dynamic variable
+        pattern_color = V_dark_color                      # Fill the pattern colors from the dynamic variable
+    ),
+    linewidth = 1,                                        # EDIT: Set the width of the bar outlines
+    width = 0.8,                                          # EDIT: Set the width of the bars
+    pattern_alpha = 0.6,                                  # EDIT: Set opacity of the pattern
+    pattern_density = 0.01,                               # EDIT: Set the pattern density
+    pattern_spacing = 0.1                                 # EDIT: Set the pattern spacing
+  ) +
+  geom_point(                                             # Add individual data points to the bar plot
+    position = position_beeswarm(                         # Create beeswarm positioning of data points
+      cex = 2,                                            # EDIT: Set spacing of points from the center
+      method = "swarm"                                    # Set the method of offset
+      ),
+    size = 3.5,                                           # EDIT: Set size of the points
+    aes(y = .data[[V_Data_Column]],                       # Set data for aesthetics
+        shape = V_dot_shape,                              # Set the dot shapes
+        fill = V_dark_color,                              # Set the dot shape colors
+  )) +
+  geom_errorbar(                                          # Create error bars
+    data = B_summary,                                     # Call data from B_summary 
+    aes(ymin = Mean - SE,                                 # Set the minimum y value of the error bar
+        ymax = Mean + SE),                                # Set the maximum y value of the error bar
+    color = "black",                                      # EDIT: Set the colors for error bars
+    width = 0.6,                                          # EDIT: Set the width of the error bar ends
+    linewidth = 1,                                        # EDIT: Set the thickness of the errro bar line
+  ) +
+  scale_shape_identity() +                                # Use the R shapes specified rather than arbitrarily assigned shapes
+  scale_fill_identity() +                                 # Use the bar colors specified rather than arbitrarily assigned colors
+  scale_color_identity() +                                # Use the bar outline colors specified rather than arbitrarily assigned colors
+  scale_pattern_identity() +                              # Use the patterns specified rather than arbitrarily assigned patterns
+  scale_pattern_color_identity() +                        # Use the patterns colors specified rather than arbitrarily assigned colors
+  theme_classic() +                                       # Set the appearance of the chart- see above for theme options
+  labs(title = V_Graph_Title,                             # Set the title of the graph from the dynamic variable
+       x = V_X_Axis_Title,                                # Set the title of the x-axis from the dynamic variable 
+       y = V_Y_Axis_Title,                                # Set the title of the y-axis from the dynamic variable
+  ) +
+  (if (T_Log_Y_Axis) {
+    scale_y_log10(
+      expand = expansion(mult = c(0, 0.05)),
+      limits = c(1, Db_results$y_limit[1]),                  # Set the range of the y-axis from the dynamic variable
+      breaks = c(1, 100, 1000, 10000, 100000),
+      labels = c("0", expression(bold(10^2)), expression(bold(10^3)), expression(bold(10^4)), expression(bold(10^5)))
+    )
+  } else {
+    scale_y_continuous(
+    expand = c(0, 0),                                     # Set the amount of white space around the y-axis
+    limits = c(0, Db_results$y_limit[1]),                  # Set the range of the y-axis from the dynamic variable
+#    breaks = seq(0, 10, 2),                               # EDIT: Set the height and tick mark intervals of the y-axis (lower limit, upper limit, interval)
+    labels = function(x) x / 1000,                        # EDIT: Divide the values of the y-axis labels by [value]
+    )
+  }) +
+  theme(                                                  # Set appearance of specific components of the chart
+    legend.position = "none",                             # Remove the legend from the plot
+    axis.line = element_line(linewidth = 1),              # EDIT: Set the width of axis lines
+    plot.title = if(is.null(V_Graph_Title))               # Set visual parameters of the plot title
+      element_blank() else element_text(                  # Remove title if V_Graph_Title <- NULL in Chunk 1
+        face = "bold",                                    # EDIT: Set text weight
+        size = 20,                                        # EDIT: Set text size
+        color = "black",                                  # EDIT: Set text color
+        hjust = NULL,                                     # EDIT: Set horizontal justification (0.5 to cent)
+  ),
+    axis.title.x = if(is.null(V_X_Axis_Title))            # Set visual parameters of the axis title
+      element_blank() else element_text(                  # Remove title if V_Y_Axis_Title <- NULL in Chunk 1
+        face = "bold",                                    # EDIT: Set text weight
+        size = 20,                                        # EDIT: Set text size
+        color = "black",                                  # EDIT: Set text color
+  ),
+    axis.text.x = if(T_X_Axis_Labels) element_text(       # Set visual parameters of the axis text
+        face = "bold",                                    # EDIT: Set text weight
+        size = 20,                                        # EDIT: Set text size
+        color = "black",                                  # EDIT: Set text color
+        angle = 0                                         # EDIT: Set text rotation
+        ) else element_blank(),
+    axis.title.y = if(is.null(V_Y_Axis_Title))            # Set visual parameters of the plot title
+      element_blank() else element_text(                  # Remove title if V_Y_Axis_Title <- NULL in Chunk 1
+        face = "bold",                                    # EDIT: Set text weight
+        size = 20,                                        # EDIT: Set text size
+        color = "black",                                  # EDIT: Set text color
+        margin = margin(r = 10)                           # EDIT: Set margin between the title and y-axis values
+        ),
+    axis.text.y = element_text(                           # Set visual parameters of the y-axis text
+        face = "bold",                                    # EDIT: Set text weight
+        size = 18,                                        # EDIT: Set text size
+        color = "black",                                  # EDIT: Set text color
+      ),
+    plot.margin = unit(c(1,0.2,1,0.2), "lines"),          # EDIT: Set the margins of the plot (top, right, bottom, left)
+    ) +
+  (if (T_Y_Dashed_Line) {                                 # Add a line at y=1 if V_Y_Dashed_Line <- TRUE
+    geom_hline(yintercept = 1,                            # EDIT: Set the Y-intercept value
+               linetype = "dashed",                       # EDIT: Set the line type
+               color = "black",                           # EDIT: Set the line color
+               linewidth = 1)                             # EDIT: Set the line thickness
+    } else {NULL                                          # Exclude the line if V_Y_Dashed_Line <- FALSE
+      }) +
+stat_pvalue_manual(                                       # Add statistical comparisons 
+  Db_results %>% filter(label_size == "s"),               # Filter for significant labels
+  label = "label",                                        # Label from the label column
+  label.size = 12,                                        # EDIT: Set the size of significant labels
+  tip.length = Db_results$tip_length[1],                  # Set the length of comparison brackets 
+  fontface = "bold",                                      # EDIT: Set the weight of significant labels
+  bracket.size = 1                                        # EDIT: Set the thickness of the brackets
+) +
+stat_pvalue_manual(                                       # Add statistical comparisons 
+  Db_results %>% filter(label_size == "ns"),              # Filter for insignificant labels
+  label = "label",                                        # Label from the label column
+  label.size = 7,                                         # EDIT: Set the size of insignificant labels
+  tip.length = Db_results$tip_length[1],                  # Set the length of comparison brackets 
+  fontface = "bold",                                      # EDIT: Set the weight of significant labels
+  bracket.size = 1                                        # EDIT: Set the thickness of the brackets
+)
+S_aligned_dot_plot                                        # View the graph
+print(B_summary)
+print(D_results)
+```
+
+########################################################################################################################################
+### [**Chunk 6 - Save the plot and stats results**]{.underline}
+########################################################################################################################################
+
+```{r Chunk 6 - Save the plot}
+# Save the plot; available file type options: .pdf .tiff .png .jpeg
+ggsave(paste0(S_file_path_save,            # Save the plot - call the path to the directory to save the file 
+              "/",                         # Separate the file path and the file name with a /
+              gsub(" ", "_",               # Replace spaces in the graph title with underscores
+                   S_plot_name),           # Call the graph title to name the plot
+              ".tiff"),                    # EDIT: Specify file type
+       plot = S_aligned_dot_plot,          # Specify which plot to save
+       dpi = 400,                          # EDIT: Resolution in pixels [300 is typically good]
+       width = 3.5,                        # EDIT: Width of the image
+       height = 4,                         # EDIT: Height of the image
+       units = "in"                        # EDIT: Units of the width and height. Available options: “in” or “cm”
+)
+```
