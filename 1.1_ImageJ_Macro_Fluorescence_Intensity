@@ -1,0 +1,75 @@
+// 1.1 Automated fluorescence intensity quantifications for cultured cells in ImageJ
+
+// ====================================================================================================================
+// =============================================== Configure Variables ================================================
+// ===================== Adjust the code in this section to match the details of your experiment ======================
+// ====================================================================================================================
+
+  // Activate batch mode
+    // This will prevent the GUI from showing the images opening, processing, and closing. 
+      // This is especially useful for individuals with sensitivity to flashing lights. See the Log window for progress while the macro is running.
+
+setBatchMode(true);  
+
+// ====================================================================================================================
+  // EDIT: Set the pathway to the parent folder
+    // Make sure the pathway is enclosed with double quotes and a semicolon at the end of the line
+      // Mac example: parentFolder = "/Users/kristiesattler/Desktop/pathway/to/my/parentFolder";
+      // Linux example: parentFolder = "C:/Users/satt25/Desktop/pathway/to/my/parentFolder";
+      // For Windows pathways, exchange the backslashes for frontslashes before running
+          // Example: "C:\Users\satt25\Desktop\pathway\to\my\parentFolder"; => "C:/Users/satt25/Desktop/pathway/to/my/parentFolder";
+
+inputFolder = "/Pathway/to/my/folder/";
+
+// ====================================================================================================================
+  // EDIT (optional): Set the measurements 
+  // See for measurement options: https://docs.google.com/spreadsheets/d/1gvoAxs_YZx7wtsSA4yOZahkqLqwiAFH7YwQDcSyx0jA/edit?usp=sharing 
+    // Current settings: Area, mean grey value, integrated density, display label, no redirection, 3 decimal places 
+
+Measurements = "area mean min integrated display redirect=None decimal=2"
+
+// ====================================================================================================================
+  // EDIT: Set scales according to the microscope
+    // See for scale info of some scopes: https://docs.google.com/spreadsheets/d/1gvoAxs_YZx7wtsSA4yOZahkqLqwiAFH7YwQDcSyx0jA/edit?usp=sharing
+    // Pixel aspect ratio is set to 1.0 by default
+
+ScalePixels = 55;                    // Distance in pixels
+ScaleDistance = 10;                  // Known distance
+ScalePAR = 1.0;                      // Pixel Aspect Ratio (this will almost always be 1.0)
+ScaleUnit = "um";                    // Unit of measurement
+Magnification = "40x";               // Magnification
+Microscope = "DHLRI_655"             // Microscope 
+
+// ====================================================================================================================
+// =========================================== Run Macro to process images ============================================
+// ===================================== DO NOT change any code in this section! ======================================
+// ====================================================================================================================
+
+// List files and open images
+list = getFileList(inputFolder);
+
+for (i = 0; i < list.length; i++) {
+    filePath = inputFolder + list[i];
+
+    if (endsWith(list[i], ".tif") || endsWith(list[i], ".tiff") || endsWith(list[i], ".TIF")) {
+        open(filePath);
+        print("Open: " + filePath);
+
+        // Set scale 
+        run("Set Scale...", "distance=" + ScalePixels + " known=" + ScaleDistance + " pixel=" + ScalePAR + " unit=" + ScaleUnit);
+        print("Scale set");
+
+        // Set measurements
+        run("Set Measurements...", Measurements);
+        
+        // Measure image
+        run("Measure");
+
+        // Save the image
+        saveAs("Tiff", filePath);
+        print("Saved: " + filePath);
+
+        // Close the image
+        close();
+    }
+}
