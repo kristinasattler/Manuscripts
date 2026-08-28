@@ -59,20 +59,20 @@ IE_data_sheet <- "Flow"                              # EDIT (CRITICAL): List the
 IE_aesthetics_sheet <- "Aesthetic_variables"         # EDIT (CRITICAL): List the name of the sheet containing aesthetic variables
 IE_Date <- "26.08.26"                                # EDIT (CRITICAL): List the date (used in final file name)
 IE_Experiment <- "Flow"                              # EDIT (CRITICAL): List the experiment (used in final file name)
-IE_Stain <- "SBA"                                    # EDIT (CRITICAL): List the stain (used in final file name)
-IE_Group <- "Gate_Comparison"                        # EDIT (CRITICAL): List the analysis group (used in final file name)
+IE_Stain <- "PNA"                                    # EDIT (CRITICAL): List the stain (used in final file name)
+IE_Group <- "Untransfected"                          # EDIT (CRITICAL): List the analysis group (used in final file name)
 
 IE_plot_name <- paste0(IE_Date, "_",                   # Create the file name to save the plot
                        IE_Experiment, "_",             # Call the IE_Experiment variable
                        IE_Stain, "_",                  # Call the IE_Stain variable
                        IE_Group, "_",                  # Call the IE_Group variable
                        "ANOVA_Bar-Dot_Plot")         # EDIT (OPTIONAL): List the stats and graph types
-  #e.g. "26.08.25_Flow_PNA_Untransfected_ANOVA_Bar-Dot_Plot"
+                                                       #e.g. "26.08.25_Flow_PNA_Untransfected_ANOVA_Bar-Dot_Plot"
 
 A00_raw_data <- read.xlsx(IE_file_path_data,           # Import the raw data sheet
                         sheet = IE_data_sheet,         # Call the sheet dynamic variable
                         cols = 3:4,                  # EDIT (CRITICAL): List the range of columns containing data
-                          rows = 3:39                # EDIT (CRITICAL): List the range of rows containing data
+                        rows = 3:39                  # EDIT (CRITICAL): List the range of rows containing data
                         )
 
 M00_aesthetic_variables <- read.xlsx(IE_file_path_data,  # Import the aesthetic variables sheet
