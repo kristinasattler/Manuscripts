@@ -189,24 +189,33 @@ C03_Results <- C03_Results %>%                # Add labels to the C03_Results da
 ########################################################################################################################################
 
 ```{r Chunk 4 - Set dimensions of the graph}
-L01_variables <- modifyList(                                           # Add to the L01_variables list
-  L01_variables, list(                                                 # Use the list() function
-    G_Ly_limit = 0,                                                  # EDIT (OPTIONAL): Set the lower y-limit of the graph (NA for R default)
-    G_Uy_limit = 60000,                                              # EDIT (CRITICAL): Set the upper y-limit of the graph (NA for R default)
-    G_y_interval = NA,                                               # EDIT (OPTIONAL): Set the y-intervals (aka "breaks") (NA for R default)
-    # G_y_interval = c(1, 10, 100, 1000, 10000, 100000, 1000000),      # EDIT (OPTIONAL): Set the y-intervals for log scale (aka "breaks") (NA for R default)
-    # G_y_labels = NA,                                                 # EDIT (OPTIONAL): Set the y-labels (NA for R default)
-    G_y_labels = function(x) x / 1000,                               # EDIT (OPTIONAL): Divide y-axis labels by value 
-    # G_y_labels = c('0', expression(10^1), expression(10^2), expression(10^3), expression(10^4), expression(10^5), expression(10^6)),
-    G_h_y_intercept = (if (L01_variables$G_Y_Dashed_Line) {            # Add a horizontal dashed line if G_Y_Dashed_Line = TRUE
-      B02_summary %>%                                                  # Call the B02_summary data frame
-        filter(.data[[M01_Sort_Column_1]] == "D_Exp_Group01") %>%    # EDIT (OPTIONAL): Filter M01_Sort_Column_1 for the dynamic variable in the string
-        pull(Mean)                                                     # Pull the Mean value from the Condition Column to place the line
-    } else {}                                                          # Ignore if G_Y_Dashed_Line = FALSE
-    ),
-    G_geom_point_size = 2,                                           # EDIT (OPTIONAL): Set size of data points on the plot
-    G_margins = c(5,1,5,1)                                           # EDIT (OPTIONAL): Set the margins of the plot in mm (top, right, bottom, left)
-      ))
+L01_variables <- modifyList(                                          # Add to the L01_variables list
+  L01_variables, list(                                                # Use the list() function
+    G_Ly_limit = 1,                                                 # EDIT (OPTIONAL): Set the lower y-limit of the graph (NA for R default)
+    G_Uy_limit = 1000000,                                           # EDIT (CRITICAL): Set the upper y-limit of the graph (NA for R default)
+    G_y_interval = if (isTRUE(L01_variables$G_Log_Y_Axis)) {          # Use log-based spacing if G_Log_Y_Axis = TRUE
+      10^(0:6)                                                        # Generates c(1, 10, 100, 1000, 10000, 100000, 1000000)
+      } else { NA                                                   # EDIT (OPTIONAL): Set the y-intervals (aka "breaks") (NA for R default)
+        },
+    G_y_labels = if (isTRUE(L01_variables$G_Log_Y_Axis)) {            # Use log-based labels if G_Log_Y_Axis = TRUE
+      function(x) { 
+        labs <- scales::label_log(base = 10)(x)                       # Creates default labels as 10^0, 10^1, 10^2, etc.
+        labs[x == 1 | x == 0] <- "0"                                  # Lists "0" for 10^0 (x = 1) or 0
+        labs[x == 10] <- "10"                                         # Lists "10" for 10^1 (x = 10)
+        return(labs)
+        } 
+      } else { function(x) x / 1000                                 # EDIT (OPTIONAL): Set the y-axis labels after opening bracket (NA for R default)
+        },
+    G_h_y_intercept = (if (isTRUE(L01_variables$G_Y_Dashed_Line)) {   # Add a horizontal dashed line if G_Y_Dashed_Line = TRUE
+      B02_summary %>%                                                 # Call the B02_summary data frame
+        filter(.data[[M01_Sort_Column_1]] == "D_Exp_Group01") %>%   # EDIT (OPTIONAL): Filter M01_Sort_Column_1 for the dynamic variable in the string
+        pull(Mean)                                                    # Pull the Mean value from the Condition Column to place the line
+    } else { NULL                                                     # Ignore if G_Y_Dashed_Line = FALSE
+    }),
+    G_geom_point_size = 4,                                          # EDIT (OPTIONAL): Set size of data points on the plot
+    G_margins = c(5,1,5,1)                                          # EDIT (OPTIONAL): Set the margins of the plot in mm (top, right, bottom, left)
+  )
+)
 
 ########################################################################################################################################
 ###### ~DO NOT EDIT!~ ###### 
