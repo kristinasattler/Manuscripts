@@ -56,7 +56,7 @@ IE_file_path_save <- "/Pathway/to/my/file"           # EDIT (CRITICAL): List the
 IE_file_path_data <- paste0(IE_file_path_save, "/", 
                             "Excel_File_Name.xlsx")  # EDIT (CRITICAL): List the pathway to the raw data file [including the file]
 IE_data_sheet <- "Flow"                              # EDIT (CRITICAL): List the name of the sheet containing data (avoid special characters)
-IE_aesthetics_sheet <- "M_aesthetic_variables"       # EDIT (CRITICAL): List the name of the sheet containing aesthetic variables
+IE_aesthetics_sheet <- "Aesthetic_variables"         # EDIT (CRITICAL): List the name of the sheet containing aesthetic variables
 IE_Date <- "26.08.26"                                # EDIT (CRITICAL): List the date (used in final file name)
 IE_Experiment <- "Flow"                              # EDIT (CRITICAL): List the experiment (used in final file name)
 IE_Stain <- "SBA"                                    # EDIT (CRITICAL): List the stain (used in final file name)
