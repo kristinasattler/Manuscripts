@@ -261,7 +261,7 @@ G_y_labels <- local({                                                # Create a 
 -   [Plot Theme Options](https://docs.google.com/document/d/12yir4iAo4Y_E7MXwwrNkXOmGA0i5PhgYC6ubD6SwfOs/edit?usp=sharing)
 
 ```{r - Chunk 5 - Create the Graph}
-S_aligned_dot_plot <- ggplot(                                 # Create the aligned dot plot using ggdotplot function
+G00_aligned_dot_plot <- ggplot(                               # Create the aligned dot plot using ggdotplot function
   data = A01_sub_data,                                        # Call the data frame
   mapping = aes(x = .data[[DV01_Condition_Column]]),          # Set the x-axis to the conditions column dynamic variable
   binwidth = 1                                              # EDIT (OPTIONAL): Control the spacing between groups
@@ -377,7 +377,7 @@ S_aligned_dot_plot <- ggplot(                                 # Create the align
     } else {NULL                                              # Exclude the line if V_Y_Dashed_Line <- FALSE
       }) 
 
-S_aligned_dot_plot                                            # View the graph
+G00_aligned_dot_plot                                          # View the graph
 print(B02_summary)                                            # View the results of B02_summary (Summary Stats)
 print(C03_Results)                                            # View the results of C03_Results (ANOVA)
 ```
@@ -404,7 +404,7 @@ ggsave(paste0(IE_file_path_save,                # Save the plot - call the path 
               gsub(" ", "_",                    # Replace spaces with underscores
                    IE_plot_name),               # Call the file name created in Chunk 1
               ".tiff"),                       # EDIT (OPTIONAL): Specify the file type
-       plot = S_aligned_dot_plot,               # Specify which plot to save
+       plot = G00_aligned_dot_plot,             # Specify which plot to save
        dpi = L01_variables$S_plot_dpi,          # Call the resolution in pixels [300 is typically good]
        width = L01_variables$S_plot_width,      # Call width of the image
        height = L01_variables$S_plot_height,    # Call the height of the plot 
