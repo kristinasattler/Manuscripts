@@ -334,42 +334,41 @@ S_aligned_dot_plot <- ggplot(                                 # Create the align
     legend.position = "none",                                 # Remove the legend from the plot
     axis.ticks.y = element_line(linewidth = 1),             # EDIT (OPTIONAL): Set the width of y-axis ticks
     axis.line = element_line(linewidth = 1),                # EDIT (OPTIONAL): Set the width of axis lines
-    plot.title = if(is.null(G_Graph_Title))                   # Set visual parameters of the plot title
-      element_blank() else element_text(                      # Remove title if G_Graph_Title <- NULL in Chunk 1
+    plot.title = if(is.null(L01_variables$G_Graph_Title))     # Check if G_Graph_Title = NULL
+      element_blank() else element_text(                      # Remove title if G_Graph_Title = NULL in Chunk 1
         face = "bold",                                      # EDIT (OPTIONAL): Set text weight
         size = 20,                                          # EDIT (OPTIONAL): Set text size
         color = "black",                                    # EDIT (OPTIONAL): Set text color
-        hjust = NULL,                                       # EDIT (OPTIONAL): Set horizontal justification (0.5 to cent)
+        hjust = NULL                                        # EDIT (OPTIONAL): Set horizontal justification (0.5 to center)
   ),
-    axis.title.x = if(is.null(
-      L01_variables$G_X_Axis_Title))                          # Set visual parameters of the axis title
-      element_blank() else element_text(                      # Remove title if G_Y_Axis_Title <- NULL in Chunk 1
+    axis.title.x = if(is.null(L01_variables$G_X_Axis_Title))  # Set visual parameters of the c-axis title
+      element_blank() else element_text(                      # Remove title if G_X_Axis_Title = NULL in Chunk 1
         face = "bold",                                      # EDIT (OPTIONAL): Set text weight
         size = 20,                                          # EDIT (OPTIONAL): Set text size
         color = "black",                                    # EDIT (OPTIONAL): Set text color
   ),
-    axis.text.x = if(L01_variables$G_X_Axis_Labels) 
-      element_text(                                           # Set visual parameters of the axis text
-        face = "bold",                                      # EDIT (OPTIONAL): Set text weight
-        size = 16,                                          # EDIT (OPTIONAL): Set text size
-        color = "black",                                    # EDIT (OPTIONAL): Set text color
-        angle = 0                                           # EDIT (OPTIONAL): Set text rotation
-        ) else element_blank(),                               # Remove if G_X_Axis_Labels <- NULL in Chunk 1
-    axis.title.y = if(is.null(                                # Set visual parameters of the plot title
-      L01_variables$G_Y_Axis_Title))                          # Remove title if G_Y_Axis_Title <- NULL in Chunk 1
-      element_blank() else element_text(                      # Use these parameters if G_Y_Axis_Title <- "[title]" in Chunk 1
-        face = "bold",                                      # EDIT (OPTIONAL): Set text weight
-        size = 20,                                          # EDIT (OPTIONAL): Set text size
-        color = "black",                                    # EDIT (OPTIONAL): Set text color
-        margin = margin(r = 10)                               # Set margin between the title and y-axis values
-        ),
-    axis.text.y = element_text(                               # Set visual parameters of the y-axis text
-        face = "bold",                                      # EDIT (OPTIONAL): Set text weight
-        size = 12,                                          # EDIT (OPTIONAL): Set text size
-        color = "black",                                    # EDIT (OPTIONAL): Set text color
+  axis.text.x = if(L01_variables$G_X_Axis_Labels) 
+    element_text(                                             # Set visual parameters of the axis text
+      face = "bold",                                        # EDIT (OPTIONAL): Set text weight
+      size = 16,                                            # EDIT (OPTIONAL): Set text size
+      color = "black",                                      # EDIT (OPTIONAL): Set text color
+      angle = 0                                             # EDIT (OPTIONAL): Set text rotation
+      ) else element_blank(),                                 # Remove if G_X_Axis_Labels <- NULL in Chunk 1
+  axis.title.y = if(is.null(                                  # Set visual parameters of the plot title
+    L01_variables$G_Y_Axis_Title))                            # Remove title if G_Y_Axis_Title <- NULL in Chunk 1
+    element_blank() else element_text(                        # Use these parameters if G_Y_Axis_Title <- "[title]" in Chunk 1
+      face = "bold",                                        # EDIT (OPTIONAL): Set text weight
+      size = 20,                                            # EDIT (OPTIONAL): Set text size
+      color = "black",                                      # EDIT (OPTIONAL): Set text color
+      margin = margin(r = 10)                                 # Set margin between the title and y-axis values
       ),
-    plot.margin = unit(L01_variables$G_margins, "mm"),        # Call margins from the dynamic variable
-    ) +
+  axis.text.y = element_text(                                 # Set visual parameters of the y-axis text
+    face = "bold",                                          # EDIT (OPTIONAL): Set text weight
+    size = 12,                                              # EDIT (OPTIONAL): Set text size
+    color = "black",                                        # EDIT (OPTIONAL): Set text color
+    ),
+  plot.margin = unit(L01_variables$G_margins, "mm"),          # Call margins from the dynamic variable
+  ) +
   (if (L01_variables$G_Y_Dashed_Line) {                       # Line at L01_variables$G_h_y_intercept if G_Y_Dashed_Line <- TRUE
     geom_hline(yintercept = L01_variables$G_h_y_intercept,    # Call the Y-intercept value set in L01_variables
                linetype = "dashed",                         # EDIT (OPTIONAL): Set the horizontal y-line type
