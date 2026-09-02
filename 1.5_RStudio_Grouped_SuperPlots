@@ -1,4 +1,7 @@
-1.5_Grouped_SuperPlots
+# 1.5 - Create a Grouped SuperPlot (Figures 2, 3, 4)
+
+# Paste the code below into R Markdown file: 
+# Only edit lines with "EDIT:" at the start of the comment
 
 ########################################################################################################################################
 ### [**Chunk 00 - Install or update packages (if needed)**]
@@ -59,14 +62,14 @@ IE_Date <- "26.08.26"                              # EDIT (CRITICAL): List the d
 IE_Experiment <- "Flow"                            # EDIT (CRITICAL): List the experiment (used in final file name)
 IE_Stain <- "SBA_PNA_VVA"                          # EDIT (CRITICAL): List the stain (used in final file name)
 IE_Group <- "Untransfected"                        # EDIT (CRITICAL): List the analysis group (used in final file name)
-IE_Graph <- "Grouped_Bar-Dot_Plot"                 # EDIT (OPTIONAL): List the stats and graph types (used in final file name)
+IE_Graph <- "Grouped_SuperPlot"                    # EDIT (OPTIONAL): List the stats and graph types (used in final file name)
 
 IE_plot_name <- paste0(IE_Date, "_",                 # Create the file name to save the plot
                        IE_Experiment, "_",           # Call the IE_Experiment variable
                        IE_Stain, "_",                # Call the IE_Stain variable
                        IE_Group, "_",                # Call the IE_Group variable
                        IE_Graph)                     # Call the IE_Graph variable
-  #e.g. "26.08.26_Flow_PNA_Untransfected_Grouped_Bar-Dot_Plot"
+  #e.g. "26.08.26_Flow_PNA_Untransfected_Grouped_SuperPlot"
 
 A00_raw_data <- read.xlsx(IE_file_path_data,          # Import the raw data sheet
                         sheet = IE_data_sheet,        # Call the sheet dynamic variable
@@ -89,22 +92,22 @@ M01_dark_color <- "M_dark_color"           # EDIT (CRITICAL): Aesthetic variable
 M01_dot_shape <- "M_dot_shape"             # EDIT (CRITICAL): Aesthetic variables column names: dot shapes
 M01_bar_pattern <- "M_bar_pattern"         # EDIT (CRITICAL): Aesthetic variables column names: bar patterns
 
-DV01_Condition_Column_1 <- "Lectin"      # EDIT (CRITICAL): Data column names: Cohorts (e.g. stain)
-DV01_Condition_Column_2 <- "Cells"       # EDIT (CRITICAL): Data column names: experimental groups (e.g. "Cells")
-DV01_Data_Column <- "FC"                 # EDIT (CRITICAL): Data column names: data values
+DV01_Condition_Column_1 <- "Lectin"        # EDIT (CRITICAL): Data column names: Cohorts (e.g. stain)
+DV01_Condition_Column_2 <- "Cells"         # EDIT (CRITICAL): Data column names: experimental groups (e.g. "Cells")
+DV01_Data_Column <- "FC"                   # EDIT (CRITICAL): Data column names: data values
 
-L01_variables <- list(                 # Create a list of variables for creating the graph (saved at the end)
-  Date = IE_Date,                      # Call the value from the "IE_Date" variable set earlier
-  Experiment = IE_Experiment,          # Call the value from the "IE_Experiment" variable set earlier
-  Stain = IE_Stain,                    # Call the value from the "IE_Stain" variable set earlier
-  Group = IE_Group,                    # Call the value from the "IE_Group" variable set earlier
-  Graph = IE_Graph,                    # Call the IE_Graph variable
-  G_Graph_Title = NULL,              # EDIT (CRITICAL): Set the dynamic variable for the title of the graph (NULL for no title)
-  G_X_Axis_Title = NULL,             # EDIT (CRITICAL): Set the dynamic variable for the X axis title {NULL for no title}
-  G_X_Axis_Labels = FALSE,           # EDIT (CRITICAL): Set the dynamic variable to show X axis labels 
-  G_Y_Axis_Title = NULL,             # EDIT (CRITICAL): Set the dynamic variable for the Y axis title {NULL for no title}
-  G_Y_Dashed_Line = TRUE,            # EDIT (CRITICAL): Add a horizontal dashed line?
-  G_Log_Y_Axis = FALSE               # EDIT (CRITICAL): Toggle Y axis scale [FALSE = linear scale; TRUE = logarithmic scale]
+L01_variables <- list(                       # Create a list of variables for creating the graph (saved at the end)
+  Date = IE_Date,                            # Call the value from the "IE_Date" variable set earlier
+  Experiment = IE_Experiment,                # Call the value from the "IE_Experiment" variable set earlier
+  Stain = IE_Stain,                          # Call the value from the "IE_Stain" variable set earlier
+  Group = IE_Group,                          # Call the value from the "IE_Group" variable set earlier
+  Graph = IE_Graph,                          # Call the IE_Graph variable
+  G_Graph_Title = NULL,                    # EDIT (CRITICAL): Set the dynamic variable for the title of the graph (NULL for no title)
+  G_X_Axis_Title = NULL,                   # EDIT (CRITICAL): Set the dynamic variable for the X axis title {NULL for no title}
+  G_X_Axis_Labels = FALSE,                 # EDIT (CRITICAL): Set the dynamic variable to show X axis labels 
+  G_Y_Axis_Title = NULL,                   # EDIT (CRITICAL): Set the dynamic variable for the Y axis title {NULL for no title}
+  G_Y_Dashed_Line = TRUE,                  # EDIT (CRITICAL): Add a horizontal dashed line?
+  G_Log_Y_Axis = FALSE                     # EDIT (CRITICAL): Toggle Y axis scale [FALSE = linear scale; TRUE = logarithmic scale]
 )
 ```
 
