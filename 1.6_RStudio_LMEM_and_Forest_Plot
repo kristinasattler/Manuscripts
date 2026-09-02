@@ -1,0 +1,564 @@
+# 1.6 - Linear Mixed Effects Model (LMEM) and create a Forest Plot (Figure 5)
+
+# Paste the code below into R Markdown file: 
+# Only edit lines with "EDIT:" at the start of the comment
+
+########################################################################################################################################
+### [**Chunk 00 - Install or update packages (if needed)**]
+###### [**DO NOT EDIT**]
+########################################################################################################################################
+
+```{r Chunk 00 - Install or update packages (if needed), eval=FALSE}
+install.packages("tidyverse")
+install.packages("openxlsx")
+install.packages("scales")
+install.packages("lme4")
+install.packages("lmerTest")
+install.packages("emmeans")
+install.packages("svglite")
+```
+
+########################################################################################################################################
+### [**Chunk 0 - Load packages and set working directory**]
+###### [**DO NOT EDIT**]
+########################################################################################################################################
+
+```{r Chunk 0 - Load packages and set working directory, message=FALSE}
+library(tidyverse)
+library(openxlsx)
+library(scales)
+library(lme4)
+library(lmerTest)
+library(emmeans)
+library(svglite)
+options(scipen = 999)                   # Converts all numbers to standard notation
+```
+
+########################################################################################################################################
+### [**Chunk 1 - Open data file and set Dynamic Variables**]
+###### [**EDIT**]
+########################################################################################################################################
+
+```{r Chunk 1 - Open data file and set Dynamic Variables}
+# Open data file with openxlsx and create an object
+IE_file_path_save <- "/Pathway/to/my/file"             # EDIT (CRITICAL): List the pathway to the raw data file [excluding the file]
+IE_file_path_data <- paste0(IE_file_path_save, "/", 
+                            "Excel_File_Name.xlsx")    # EDIT (CRITICAL): List the pathway to the raw data file [including the file]
+IE_data_sheet <- "Flow"                            # EDIT (CRITICAL): List the name of the sheet containing data (avoid special characters)
+IE_aesthetics_sheet <- "Aesthetic_variables"       # EDIT (CRITICAL): List the name of the sheet containing aesthetic variables
+IE_Date <- "26.09.02"                              # EDIT (CRITICAL): List the date (used in final file name)
+IE_Experiment <- "Flow"                            # EDIT (CRITICAL): List the experiment (used in final file name)
+IE_Group <- "Untransfected_LMEM"                   # EDIT (CRITICAL): List the analysis group (used in final file name)
+IE_Graph <- "Forest_Plot"                          # EDIT (OPTIONAL): List the graph type (used in final file name)
+
+IE_plot_name <- paste0(IE_Date, "_",                 # Create the file name to save the plot
+                       IE_Experiment, "_",           # Call the IE_Experiment variable
+                       IE_Group, "_",                # Call the IE_Group variable
+                       IE_Graph)                     # Call the IE_Graph variable
+  #e.g. "26.08.25_Flow_Untransfected_LMEM_Forest_Plot"
+
+# Open data and variable files
+A00_raw_data <- read.xlsx(IE_file_path_data,      # Calls the file pathway contianing the Excel file
+           sheet = IE_data_sheet,                 # Calls the sheet containing the data 
+           cols = 4:8,                          # EDIT (CRITICAL): List the columns in the Excel sheet that contain the data
+           rows = 149:227                       # EDIT (CRITICAL): List the rows in the Excel sheet that contain the data
+           )
+
+M00_aesthetic_variables <- read.xlsx(IE_file_path_data, # Calls the file pathway contianing the Excel file
+           sheet = IE_aesthetics_sheet,                 # Calls the sheet containing the aesthetic variables
+           cols = 3:9,                                # EDIT (CRITICAL): List the columns in the Excel sheet that contain aesthetic variables
+           rows = 15:21                               # EDIT (CRITICAL): List the rows in the Excel sheet that contain aesthetic variables
+           )
+
+L00_comparisons <- read.xlsx(IE_file_path_data, # Calls the file pathway contianing the Excel file
+           sheet = IE_aesthetics_sheet,         # Calls the sheet containing the aesthetic variables (and comparisons)
+           cols = 12:13,                      # EDIT (CRITICAL): List the columns in the Excel sheet that contain comparisons
+           rows = 3:5.                        # EDIT (CRITICAL): List the rows in the Excel sheet that contain comparisons
+           )
+
+# Set dynamic variables correspondiing to column names
+M01_Sort_Column_0 <- "Factor"            # EDIT (CRITICAL): Aesthetic variables column names: cohorts vs. groups
+M01_Sort_Column_1 <- "Dynamic_Variable"  # EDIT (CRITICAL): Aesthetic variables column names: dynamic variables
+M01_Sort_Column_2 <- "Condition"         # EDIT (CRITICAL): Aesthetic variables column names: naming cohorts (e.g. stain) vs. experimental groups (e.g.cell type)
+M01_light_color <- "M_light_color"       # EDIT (CRITICAL): Aesthetic variables column names: light colors (inside of bars/shapes)
+M01_dark_color <- "M_dark_color"         # EDIT (CRITICAL): Aesthetic variables column names: dark colors (outline of shapes)
+M01_dot_shape <- "M_dot_shape"           # EDIT (CRITICAL): Aesthetic variables column names: dot shapes
+
+DV01_Condition_Column_0 <- "Trial"       # EDIT (CRITICAL): Data column names: Sample IDs
+DV01_Condition_Column_1 <- "Lectin"      # EDIT (CRITICAL): Data column names: Cohorts (e.g. stain)
+DV01_Condition_Column_2 <- "Cells"       # EDIT (CRITICAL): Data column names: experimental groups (e.g. "Cells")
+DV01_Data_Column <- "MFI"                # EDIT (CRITICAL): Data column names: data values
+
+L01_variables <- list(                 # Create a list of variables for creating the graph (to save at the end)
+  Date = IE_Date,                      # Call the value from the "IE_Date" variable set earlier
+  Experiment = IE_Experiment,          # Call the value from the "IE_Experiment" variable set earlier
+  Group = IE_Group,                    # Call the value from the "IE_Group" variable set earlier
+  Graph = IE_Graph,                    # Call the IE_Graph variable
+  G_Graph_Title = NULL,              # EDIT (CRITICAL): Set the dynamic variable for the title of the graph (NULL for no title)
+  G_X_Axis_Title = NULL,             # EDIT (CRITICAL): Set the dynamic variable for the x-axis title {NULL for no title}
+  G_X_Axis_Labels = FALSE,           # EDIT (CRITICAL): Set the dynamic variable to show x-axis labels 
+  G_Y_Axis_Title = NULL,             # EDIT (CRITICAL): Set the dynamic variable for the y-axis title {NULL for no title}
+  G_Y_Axis_Labels = TRUE             # EDIT (CRITICAL): Set the dynamic variable to show y-axis labels 
+)
+```
+########################################################################################################################################
+### [**Chunk 1b - Assign variables and create lists**]
+###### [**DO NOT EDIT**]
+########################################################################################################################################
+
+```{r Chunk 1b - Assign variables and create lists}
+list2env(L01_variables, envir = .GlobalEnv)                                # Convert L01_variables into global environment variables
+
+A01_sub_data <- A00_raw_data                                               # Create a new data frame with raw data for manipulation
+L01_Group_0_Order <- sort(unique(A01_sub_data[[DV01_Condition_Column_0]])) # Sort A01_sub_data values by DV01_Condition_Column_0
+
+F01_rename_sort_column <- function(df, old_name, new_name) {               # Create a helper function
+  colnames(df)[colnames(df) == old_name] <- new_name
+  return(df)
+}
+
+M01_Condition_1_Variables <- M00_aesthetic_variables %>%                     # Create a new data frame with only DV01_Condition_Column_1 values
+  filter(.data[[M01_Sort_Column_0]] == DV01_Condition_Column_1) %>%          # Filter by M01_Sort_Column_0 for DV01_Condition_Column_1
+  select(-any_of(c(M01_dot_shape))) %>%                                      # Remove M01_dot_shape column
+  F01_rename_sort_column(M01_Sort_Column_2, DV01_Condition_Column_1) %>%     # Set the old name, new name variables for F01_rename_sort_column
+  rename(M_group_1_dark_color = M_dark_color)                                # Rename M_dark_color to M_group_1_dark_color to avoid clashes
+L01_Group_1_Order <- M01_Condition_1_Variables[[DV01_Condition_Column_1]]    # Assign order of groups in DV01_Condition_Column_1 by M01_Condition_1_Variables
+
+M01_Condition_2_Variables <- M00_aesthetic_variables %>%                     # Create a new data frame with only DV01_Condition_Column_2 values
+  filter(.data[[M01_Sort_Column_0]] == DV01_Condition_Column_2) %>%          # Filter by M01_Sort_Column_0 for DV01_Condition_Column_2
+  F01_rename_sort_column(M01_Sort_Column_2, DV01_Condition_Column_2)         # Set the old name, new name variables for F01_rename_sort_column
+L01_Group_2_Order <- M01_Condition_2_Variables[[DV01_Condition_Column_2]]    # Assign order of groups in DV01_Condition_Column_2 by M01_Condition_2_Variables
+
+pwalk(                                                    # Assign dynamic variable names from M01_Condition_2_Variables
+  list(                                                   #   to the global environment to use later
+    M01_Condition_2_Variables[[M01_Sort_Column_1]],       # Extract M01_Sort_Column_1 for M01_Condition_2_Variables
+    M01_Condition_2_Variables[[DV01_Condition_Column_2]]  # Extract DV01_Condition_Column_2 for M01_Condition_2_Variables
+  ), 
+  function(dyn_var, val) {                                # Map each variable name to its value
+    assign(dyn_var, val, envir = .GlobalEnv)              # Assign each dynamic variable name its value in global environment
+  }
+)
+pwalk(                                                    # Assign dynamic variable names from M01_Condition_2_Variables
+  list(                                                   #   to the global environment to use later
+    M01_Condition_1_Variables[[M01_Sort_Column_1]],       # Extract M01_Sort_Column_1 for M01_Condition_1_Variables
+    M01_Condition_1_Variables[[DV01_Condition_Column_1]]  # Extract DV01_Condition_Column_1 for M01_Condition_1_Variables
+  ), 
+  function(dyn_var, val) {                                # Map each variable name to its value
+    assign(dyn_var, val, envir = .GlobalEnv)              # Assign each dynamic variable name its value in global environment
+  }
+)
+
+A01_sub_data[[DV01_Condition_Column_0]] <- factor(        # Assign DV01_Condition_Column_0 as a factor
+  A01_sub_data[[DV01_Condition_Column_0]],                # Call DV01_Condition_Column_0 from A01_sub_data
+  levels = L01_Group_0_Order)                             # Assign levels (order) by L01_Group_0_Order
+
+A01_sub_data[[DV01_Condition_Column_1]] <- factor(        # Assign DV01_Condition_Column_1 as a factor
+  A01_sub_data[[DV01_Condition_Column_1]],                # Call DV01_Condition_Column_1 from A01_sub_data
+  levels = L01_Group_1_Order)                             # Assign levels (order) by L01_Group_1_Order
+
+A01_sub_data[[DV01_Condition_Column_2]] <- factor(        # Assign DV01_Condition_Column_2 as a factor
+  A01_sub_data[[DV01_Condition_Column_2]],                # Call DV01_Condition_Column_2 from A01_sub_data
+  levels = L01_Group_2_Order)                             # Assign levels (order) by L01_Group_2_Order
+
+A01_sub_data[[DV01_Data_Column]] <- as.numeric(           # Set the DV01_Data_Column values as numeric
+  as.character(A01_sub_data[[DV01_Data_Column]]))
+```
+
+########################################################################################################################################
+### [**Chunk 2 - Fit the Linear Mixed Effects Model**]
+###### [**DO NOT EDIT**]
+########################################################################################################################################
+
+```{r Chunk 2 - Fit the Linear Mixed Model}
+F02_lmm_formula <- as.formula(                              # Build the model formula as text, then convert it to a formula object
+  paste0(
+    "`", DV01_Data_Column, "` ~ `",                         # Start formula: predict Data_Column values
+    DV01_Condition_Column_1, "` * `",                       # ...by the interaction of DV01_Condition_Column_1
+    DV01_Condition_Column_2, "` + (1 | `",                  # ...and DV01_Condition_Column_2, plus a random effect
+    DV01_Condition_Column_0, "`)"                           # ...grouped by DV01_Condition_Column_0 (e.g., Sample_ID)
+  )
+)
+B01_lmm_fit <- lmer(F02_lmm_formula, data = A01_sub_data)   # Fit the linear mixed effects model using the formula and data
+B02_anova <- anova(B01_lmm_fit, type = 3)                   # Run a Type III ANOVA on the fitted model to test overall significance
+```
+
+########################################################################################################################################
+### [**Chunk 3 - Apply post-hoc comparisons**]
+###### [**DO NOT EDIT**]
+########################################################################################################################################
+
+```{r Chunk 3 - Apply post-hoc comparisons}
+F03_emm_specs <- as.formula(                              # Create the emmeans specification formula 
+  paste0("~ `", DV01_Condition_Column_2, "` | `",         # Compare DV01_Condition_Column_2 groups separately within each DV01_Condition_Column_1 group
+         DV01_Condition_Column_1, "`")
+)
+C01_emm_results <- emmeans(B01_lmm_fit, F03_emm_specs)    # Calculate estimated marginal means for each group combination
+C02_pairwise_contrast <- pairs(C01_emm_results,           # Run pairwise comparisons between groups
+                               adjust = "tukey")          # Adjust p-values for multiple comparisons
+C03_eff_sizes <- eff_size(                                # Calculate effect sizes (Cohen's d) for each pairwise comparison
+  C01_emm_results, 
+  sigma = sigma(B01_lmm_fit),                             # Use the model's residual standard deviation
+  edf = df.residual(B01_lmm_fit)                          # Use the model's residual degrees of freedom
+)
+```
+
+########################################################################################################################################
+### [**Chunk 4 - Create interpretable data frames and merge**]
+###### [**DO NOT EDIT**]
+########################################################################################################################################
+
+```{r Chunk 4 - Create interpretable data frames and merge}
+D01_contrast_df <- summary(C02_pairwise_contrast,              # Convert pairwise contrast results into a data frame
+                            infer = c(TRUE, TRUE)) %>%         # Specify confidence intervals and p-values
+  as.data.frame()                                              # Convert to a data frame
+
+D02_eff_size_df <- summary(C03_eff_sizes,                      # Convert effect size results into a data frame
+                            infer = c(TRUE, TRUE)) %>%         # Specify confidence intervals and p-values
+  as.data.frame() %>%                                          # Convert to a data frame
+  select(                                                      # Keep only the relevant columns
+    contrast,                                                  # Which comparison this row represents
+    all_of(DV01_Condition_Column_1),                           # Which Condition_Column_1 group the comparison belongs to
+    Cohen_d = effect.size,                                     # Rename effect.size to Cohen_d
+    d_SE = SE,                                                 # Rename SE to d_SE
+    Cohen_d_Lower = lower.CL,                                  # Rename lower.CL to Cohen_d_Lower
+    Cohen_d_Upper = upper.CL                                   # Rename upper.CL to Cohen_d_Upper
+  )
+
+R01_summary <- D01_contrast_df %>%                             # Start from the pairwise contrast results
+  left_join(D02_eff_size_df,                                   # Add matching effect size results
+            by = c("contrast", DV01_Condition_Column_1)) %>%   # Match by comparison and DV01_Condition_Column_1
+  select(                                                      # Keep and rename only the relevant columns
+    !!sym(DV01_Condition_Column_1),                            # Which Condition_Column_1 group the comparison belongs to
+    Contrast = contrast,                                       # Rename contrast to Contrast
+    Mean_Difference = estimate,                                # Rename estimate to Mean_Difference
+    SE,                                                        # Standard error of the mean difference
+    LowerCI = lower.CL,                                        # Rename lower.CL to LowerCI
+    UpperCI = upper.CL,                                        # Rename upper.CL to UpperCI
+    p_value = p.value,                                         # Rename p.value to p_value
+    Cohen_d,                                                   # Effect size for the comparison
+    Cd_SE = d_SE,                                              # Rename d_SE to Cd_SE
+    CdLowerCI = Cohen_d_Lower,                                 # Rename Cohen_d_Lower to CdLowerCI
+    CdUpperCI = Cohen_d_Upper                                  # Rename Cohen_d_Upper to CdUpperCI
+  ) %>%
+  arrange(desc(abs(Cohen_d)))                                  # Sort rows by largest effect size first
+
+R01_summary <- R01_summary %>%                  # Add elements to the test result data frame
+  mutate(                                       # Function to create new columns
+    p_label = case_when(                        # Name the column and set the value under these conditions
+      `p_value` <= 0.0001 ~ "****",           # EDIT (OPTIONAL): If the "p_value" column is < 0.0001, label with ****
+      `p_value` <= 0.001 ~ "***",             # EDIT (OPTIONAL): If the "p_value" column is < 0.001, label with ***
+      `p_value` <= 0.01 ~ "**",               # EDIT (OPTIONAL): If the "p_value" column is < 0.01, label with **
+      `p_value` <= 0.05 ~ "*",                # EDIT (OPTIONAL): If the "p_value" column is < 0.05, label with *
+      TRUE ~ "ns"                             # EDIT (OPTIONAL): If the "p_value" column is > 0.05, label with ns
+      ))
+
+```
+
+########################################################################################################################################
+### [**Chunk 5 - Filter for relevant comparisons**]
+###### [**DO NOT EDIT**]
+########################################################################################################################################
+
+```{r Chunk 5 - Filter for relevant comparisons}
+F04_group_rename <- function(x) {        # Create a helper function to remove special characters from group names
+  x <- gsub("[()]", "", x)               # Remove parentheses
+  x <- trimws(x)                         # Remove leading/trailing whitespace
+  x <- gsub("[^[:alnum:]]+", "_", x)     # Replace remaining special characters with underscores
+  x <- gsub("^_+|_+$", "", x)            # Remove leading/trailing underscores
+  return(x)
+}
+
+# Look up each comparison's group labels from M01_Condition_2_Variables, then build both possible Forward and Reverse contrast name orders
+E01_Keep_Contrasts <- L00_comparisons %>%
+  mutate(
+    Label_1 = M01_Condition_2_Variables[[DV01_Condition_Column_2]][match(trimws(Comp_1), trimws(M01_Condition_2_Variables[[M01_Sort_Column_1]]))],
+    Label_2 = M01_Condition_2_Variables[[DV01_Condition_Column_2]][match(trimws(Comp_2), trimws(M01_Condition_2_Variables[[M01_Sort_Column_1]]))],
+    Forward = paste(Label_1, "-", Label_2),
+    Reverse = paste(Label_2, "-", Label_1)
+  )
+
+E02_Normalized_Targets <- F04_group_rename(na.omit(c(E01_Keep_Contrasts$Forward,      # Clean the target contrast names for matching
+                                                     E01_Keep_Contrasts$Reverse)))
+E03_Match_Found <- length(E02_Normalized_Targets) > 0 &&                              # Check that target contrasts exist
+  any(F04_group_rename(R01_summary$Contrast) %in% E02_Normalized_Targets)             # Check that at least one matches the model results
+
+if (E03_Match_Found) {                                               # Check if E03_Match_Found = TRUE
+  L02_Target_Order <- na.omit(E01_Keep_Contrasts$Forward)            # Use the specified comparison order
+  R02_summary <- R01_summary %>%
+    filter(F04_group_rename(Contrast) %in% E02_Normalized_Targets)   # Keep only those matching contrasts
+} else {                                                             # If E03_Match_Found = FALSE
+  L02_Target_Order <- unique(R01_summary$Contrast)                   # Use the order contrasts already appear in and keep all contrasts
+  R02_summary <- R01_summary
+}
+
+R02_summary <- R02_summary %>%
+  mutate(Contrast = factor(Contrast, levels = unique(Contrast)))     # Lock in the final display order for Contrast
+```
+
+########################################################################################################################################
+### [**Chunk 5 - Assign aesthetic variables**]
+###### [**E**]
+########################################################################################################################################
+
+```{r Chunk 5 - Assign aesthetic variables}
+L01_variables <- modifyList(                         # Add to the L01_variables list
+  L01_variables, list(                               # Use the list() function
+    G_x_axis_dodge = 750,                          # EDIT (CRITICAL): List the Mean_Distance value to dodge points by on the x-axis
+    G_y_Offset = 0.5,                              # EDIT (OPTIONAL): List the value to offset DV01_Condition_Column_2 by on the y-axis
+    G_geom_point_size = 2,                         # EDIT (OPTIONAL): Set size of data points on the plot
+    G_margins = c(5,1,5,1)                         # EDIT (OPTIONAL): Set the margins of the plot in mm (top, right, bottom, left)
+  ))
+
+list2env(L01_variables, envir = .GlobalEnv)          # Convert L01_variables into global environment variables
+
+R03_summary <- R02_summary %>%
+  separate_wider_delim(                                                     # Split "Group1 - Group2" text into separate columns
+    Contrast,                                                               # Select the Contrast column
+    delim = "-",                                                            # Split groups by the hyphen
+    names = c("group1", "group2"),                                          # Name the columns "group1" and "group2"
+    cols_remove = FALSE,                                                    # Keep the original Contrast column too
+    too_many = "merge"                                                      # If a group name itself contains "-", merge the extra pieces
+  ) %>%
+  mutate(
+    group1 = trimws(gsub("[()]", "", group1)),                                    # Clean up group1 text (remove parentheses/whitespace)
+    group2 = trimws(gsub("[()]", "", group2)),                                    # Clean up group2 text (remove parentheses/whitespace)
+    !!sym(DV01_Condition_Column_1) := factor(.data[[DV01_Condition_Column_1]],    # Lock in display order for DV01_Condition_Column_1 groups
+                                             levels = L01_Group_1_Order),
+    Contrast = factor(Contrast, levels = unique(c(L02_Target_Order, Contrast)))   # Lock in display order for Contrast with L02_Target_Order
+  ) %>%
+  group_by(.data[[DV01_Condition_Column_1]]) %>%                             # Group rows by DV01_Condition_Column_1 to calculate offsets within each group
+  mutate(
+    n_comparisons = n_distinct(Contrast),                                    # Count how many comparisons exist per group
+    comp_rank = dense_rank(as.numeric(Contrast)),                            # Rank each comparison within its group
+    Sub_Offset = if_else(n_comparisons == 1, 0,                              # Calculate vertical spacing so multiple comparisons don't overlap
+                         ((n_comparisons + 1) / 2 - comp_rank) * G_y_Offset) # Multiply value by G_y_Offset
+  ) %>%
+  ungroup() %>%
+  mutate(
+    Group_Base = as.numeric(factor(.data[[DV01_Condition_Column_1]],        # Calculate base vertical position for each group
+                                   levels = rev(L01_Group_1_Order))) * 1.5, # Reverse the group order so they appear top-bottom
+    Y_Pos = Group_Base + Sub_Offset,                                        # Combine base position and offset for final vertical position
+    Mean_Difference = Mean_Difference * -1,                                 # Flip sign so plot direction matches expected convention
+    LowerCI = LowerCI * -1,                                                 # Flip sign to match Mean_Difference
+    UpperCI = UpperCI * -1                                                  # Flip sign to match Mean_Difference
+  )
+
+R06_points_long <- R03_summary %>%                     # Reshape data so each comparison has one row per group
+  pivot_longer(cols = c(group1, group2),               # Turn group1/group2 columns into rows
+               names_to = "Contrast_Group", 
+               values_to = "Condition_2_Group") %>%
+  mutate(
+    Condition_2_Group = factor(Condition_2_Group,            # Set Condition_2_Group as factor
+                               levels = L01_Group_2_Order),  # Apply L01_Group_2_Order
+    Point_X_Pos = if_else(Contrast_Group == "group1",        # Offset points so they don't overlap
+                          Mean_Difference - G_x_axis_dodge,  # Offset left by G_x_axis_dodge
+                          Mean_Difference + G_x_axis_dodge)  # Offset right by G_x_axis_dodge
+  ) %>%
+  left_join(M01_Condition_2_Variables,                                      # Add aesthetic variables for each group
+            by = setNames(DV01_Condition_Column_2,                          # Match to DV01_Condition_Column_2
+                          "Condition_2_Group")) %>%                         # Match colors to Condition_2_Group
+  select(-any_of(c("Dynamic_Variable", "Factor"))) %>%                      # Remove columns no longer needed
+  left_join(                                                                # Add DV01_Condition_Column_1 aesthetic variables
+    M01_Condition_1_Variables %>% select(all_of(DV01_Condition_Column_1),   # Add M_group_1_dark_color
+                                         M_group_1_dark_color),
+    by = DV01_Condition_Column_1                                            # Match by Condition_Column_1 
+  )
+
+R07_y_axis_labels <- R06_points_long %>%                      # Calculate where each group's label should sit on the y-axis
+  group_by(.data[[DV01_Condition_Column_1]]) %>%              # Group rows by DV01_Condition_Column_1
+  summarize(Center_Pos = mean(Y_Pos), .groups = "drop") %>%   # Find the average vertical position per group
+  arrange(Center_Pos)                                         # Sort labels top to bottom
+```
+
+########################################################################################################################################
+### [**Chunk 6 - Create the forest plot**]
+###### [**EDIT**]
+########################################################################################################################################
+
+```{r Chunk 6 - Create the forest plot}
+G00_forest_plot <- ggplot(R06_points_long,                # Start a plot using the reshaped comparison data
+                          aes(x = Mean_Difference,             # Plot the mean difference on the x-axis
+                              y = Y_Pos                         # Plot the pre-calculated vertical position on the y-axis
+                          )) +
+  geom_vline(xintercept = 0,                                # Draw a vertical reference line at zero (no difference)
+             linetype = "dashed", 
+             color = "grey60", 
+             linewidth = 0.6) +
+  geom_errorbarh(                                           # Draw horizontal error bars for each comparison
+    aes(xmin = LowerCI,                                     # Left edge of the error bar (lower confidence limit)
+        xmax = UpperCI),                                    # Right edge of the error bar (upper confidence limit)
+    color = R06_points_long$M_group_1_dark_color,           # Color each error bar by its Condition_Column_1 group
+    height = 0.2,                                           # Set the height of the error bar caps
+    linewidth = 1,                                          # Set the thickness of the error bar line
+    show.legend = FALSE                                     # Don't show this layer in the legend
+  ) +
+  geom_point(                                                # Add a point for each group in the comparison
+    data = R06_points_long,
+    aes(
+      x = Point_X_Pos,                                       # Use the dodge-adjusted x position so points don't overlap
+      y = Y_Pos,                                             # Match the same vertical position as the error bar
+      shape = M_dot_shape,                                   # Set point shape by Condition_Column_2 group
+      fill = M_light_color,                                  # Set point fill color by Condition_Column_2 group
+      color = M_dark_color                                   # Set point outline color by Condition_Column_2 group
+    ),
+    size = 3.5,                                               # Set the size of the points
+    stroke = 0.8,                                             # Set the thickness of the point outline
+    show.legend = FALSE                                       # Don't show this layer in the legend
+  ) +
+  scale_y_continuous(                                        # Customize the y-axis
+    breaks = R07_y_axis_labels$Center_Pos,                   # Place axis labels at each group's calculated center position
+    labels = R07_y_axis_labels[[DV01_Condition_Column_1]]    # Label each break with its Condition_Column_1 group name
+  ) +
+  scale_shape_identity() +                                    # Use the R shapes specified rather than arbitrarily assigned shapes
+  scale_fill_identity() +                                     # Use the bar colors specified rather than arbitrarily assigned colors
+  scale_color_identity() +                                    # Use the bar outline colors specified rather than arbitrarily assigned colors
+  theme_classic() +                                           # Set the appearance of the chart- see above for theme options
+  labs(title = G_Graph_Title,                             # Set the title of the graph from the dynamic variable
+       x = G_X_Axis_Title,                                # Set the title of the x-axis from the dynamic variable 
+       y = G_Y_Axis_Title,                                # Set the title of the y-axis from the dynamic variable
+  ) +
+  theme(                                                      # Set appearance of specific components of the chart
+    legend.position = "none",                                 # Remove the legend from the plot
+    axis.ticks.y = element_line(linewidth = 1),             # EDIT (OPTIONAL): Set the width of y-axis ticks
+    axis.line = element_line(linewidth = 1),                # EDIT (OPTIONAL): Set the width of axis lines
+    plot.title = if(is.null(L01_variables$G_Graph_Title))     # Check if G_Graph_Title = NULL
+      element_blank() else element_text(                      # Remove title if G_Graph_Title = NULL in Chunk 1
+        face = "bold",                                      # EDIT (OPTIONAL): Set text weight
+        size = 20,                                          # EDIT (OPTIONAL): Set text size
+        color = "black",                                    # EDIT (OPTIONAL): Set text color
+        hjust = NULL                                        # EDIT (OPTIONAL): Set horizontal justification (0.5 to center)
+        ),
+    axis.title.x = if(is.null(L01_variables$G_X_Axis_Title))  # Set visual parameters of the c-axis title
+      element_blank() else element_text(                      # Remove title if G_X_Axis_Title = NULL in Chunk 1
+        face = "bold",                                      # EDIT (OPTIONAL): Set text weight
+        size = 20,                                          # EDIT (OPTIONAL): Set text size
+        color = "black",                                    # EDIT (OPTIONAL): Set text color
+        ),
+    axis.text.x = if(L01_variables$G_X_Axis_Labels) 
+      element_text(                                           # Set visual parameters of the axis text
+        face = "bold",                                      # EDIT (OPTIONAL): Set text weight
+        size = 20,                                          # EDIT (OPTIONAL): Set text size
+        color = "black",                                    # EDIT (OPTIONAL): Set text color
+        angle = 0                                           # EDIT (OPTIONAL): Set text rotation
+      ) else element_blank(),                                 # Remove if G_X_Axis_Labels <- NULL in Chunk 1
+    axis.title.y = if(is.null(                                # Set visual parameters of the plot title
+      L01_variables$G_Y_Axis_Title))                          # Remove title if G_Y_Axis_Title <- NULL in Chunk 1
+      element_blank() else element_text(                      # Use these parameters if G_Y_Axis_Title <- "[title]" in Chunk 1
+        face = "bold",                                      # EDIT (OPTIONAL): Set text weight
+        size = 20,                                          # EDIT (OPTIONAL): Set text size
+        color = "black",                                    # EDIT (OPTIONAL): Set text color
+        margin = margin(r = 10),                              # Set margin between the title and y-axis values
+        ),
+    axis.text.y = element_text(                               # Set visual parameters of the y-axis text
+      face = "bold",                                        # EDIT (OPTIONAL): Set text weight
+      size = 12,                                            # EDIT (OPTIONAL): Set text size
+      color = "black",                                      # EDIT (OPTIONAL): Set text color
+      ),
+    plot.margin = unit(L01_variables$G_margins, "mm"),        # Call margins from the dynamic variable
+    )
+
+G00_forest_plot
+print(R01_summary)
+```
+
+########################################################################################################################################
+### [**Chunk 7 - Save the plot and stats results**]{.underline}
+###### [**EDIT**]
+########################################################################################################################################
+
+```{r Chunk 7a - Save the plot}
+# Save the plot; available file type options: .pdf .tiff .png .jpeg
+L01_variables <- modifyList(                    # Add to the L01_variables list
+  L01_variables,
+  list(
+    S_plot_dpi = 400,                         # EDIT (OPTIONAL): Resolution in pixels [300 is typically good]
+    S_plot_width = 4,                         # EDIT (OPTIONAL): Width of the image
+    S_plot_height = 3,                        # EDIT (OPTIONAL): Height of the image
+    S_plot_units = "in"                       # EDIT (OPTIONAL): Units of the width and height. Available options: “in” or “cm”
+  ))
+
+ggsave(paste0(IE_file_path_save,                # Save the plot - call the path to the directory to save the file 
+              "/",                              # Separate the file path and the file name with a /
+              gsub(" ", "_",                    # Replace spaces with underscores
+                   IE_plot_name),               # Call the file name created in Chunk 1
+              ".tiff"),                       # EDIT (OPTIONAL): Specify the file type
+       plot = G00_forest_plot,                  # Specify which plot to save
+       dpi = L01_variables$S_plot_dpi,          # Call the resolution in pixels [300 is typically good]
+       width = L01_variables$S_plot_width,      # Call width of the image
+       height = L01_variables$S_plot_height,    # Call the height of the plot 
+       units = L01_variables$S_plot_units       # Call the plot units
+)
+```
+
+```{r Chunk 7b - Save stats results and graph variables}
+S_stats_results <- "Stats_Results"   # EDIT (CRITICAL): List the name of the sheet to save summary results (sheet does not have to exist)
+
+# R01_summary
+R01_startCol <- 1        # EDIT (CRITICAL): List the start column to populate R01_summary to the Excel sheet
+R01_startRow <- 2        # EDIT (CRITICAL): List the start row to populate R01_summary to the Excel sheet
+# L01_variables
+L01_startCol <- 20       # EDIT (CRITICAL): List the start column to populate L01_variables to the Excel sheet
+L01_startRow <- 2        # EDIT (CRITICAL): List the start row to populate L01_variables to the Excel sheet
+
+IE_Group_ID <- paste0(IE_Experiment, "_", IE_Stain, "_", IE_Group)   # Create a "group ID" using dynamic variables from Chunk 1
+
+# Save results from R01_summary (LMEM Results)
+local({
+  S_workbook <- loadWorkbook(IE_file_path_data)                      # Load existing workbook
+  if (!(S_stats_results %in% sheets(S_workbook))) {                  # Check if sheet exists
+    addWorksheet(S_workbook, S_stats_results)                        # Create sheet if missing
+  }
+  writeData(                                                         # Insert the group 
+    S_workbook,                                                      # Call the workbook
+    sheet    = S_stats_results,                                      # Specify which sheet to add to 
+    x        = IE_Group_ID,                                          # List the experiment source of the populated calculations
+    startCol = R01_startCol,                                         # Call the column listed to add the group
+    startRow = R01_startRow                                          # Call the row listed to add the group
+  )
+  writeData(                                                         # Insert R01_summary into the Excel sheet
+    S_workbook,                                                      # Call the workbook
+    sheet    = S_stats_results,                                      # Specify which sheet to add to 
+    x        = R01_summary,                                          # Insert values from the B02_summary data frame
+    startCol = R01_startCol + 1,                                     # Add one row from the Column listed
+    startRow = R01_startRow - 1,                                   # EDIT (OPTIONAL); Subtract one row from the row listed (use if colNames = TRUE)
+    # startRow = R01_startRow,                                       # EDIT (OPTIONAL): Use the row listed (use if colNames = FALSE)
+    colNames = TRUE                                                # EDIT (OPTIONAL): Insert column names?
+  )
+  saveWorkbook(S_workbook, IE_file_path_data, overwrite = TRUE)      # Save workbook 
+})
+
+# Save graph variables stored in L01_variables 
+local({
+  S_workbook <- loadWorkbook(IE_file_path_data)                      # Load existing workbook
+  if (!(S_stats_results %in% sheets(S_workbook))) {                  # Check if sheet exists
+    addWorksheet(S_workbook, S_stats_results)                        # Create sheet if missing
+  }
+  L02_export_variables <- enframe(                                   # Convert the list into a data frame
+    L01_variables,                                                   # Call the L01_variables list
+    name = "Variable",                                             # EDIT (OPTIONAL): Label the column storing the variable names
+    value = "Value"                                                # EDIT (OPTIONAL): Label the column storing the variable values
+    ) %>%
+    mutate(                                                          # Format values in the Value column
+      Value = sapply(Value, function(v) {                            # Search each variable for "complex" values
+        if (is.null(v)) {                                            # Check for NULL values
+          return("NULL")                                             # Populate "NULL" (rather than 0 or a blank cell)
+        } else if (is.function(v)) {                                 # Check if the variable contains an R function
+          return(paste(deparse(v), collapse = " "))                  # Convert the function into a continuous string
+        } else if (length(v) == 0) {                                 # Check if the variable is an empty vector or structure
+          return("NULL")                                             # Output the literal text string "NULL"
+        } else {                                                     # Handle standard atomic values or multi-element vectors
+          return(paste(v, collapse = ", "))                          # Combine all vector elements into a single comma-separated string
+        }
+      })
+    )
+  writeData(
+    wb       = S_workbook,                                           # Call the workbook
+    sheet    = S_stats_results,                                      # Note: ensure sheet parameter receives the sheet name string
+    x        = L02_export_variables,                                 # Specify the variable that will be saved to the Excel sheet
+    startCol = L01_startCol,                                         # Call the location of the start column
+    startRow = L01_startRow,                                         # Call the location of the start row
+    colNames = TRUE                                                # EDIT (OPTIONAL): Insert column names?
+    )
+  saveWorkbook(S_workbook, IE_file_path_data, overwrite = TRUE)      # Save workbook 
+})
+```
