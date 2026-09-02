@@ -1,1 +1,504 @@
 1.5_Grouped_Bar_Charts
+
+########################################################################################################################################
+### [**Chunk 00 - Install or update packages (if needed)**]
+###### [**DO NOT EDIT**]
+########################################################################################################################################
+
+```{r Chunk 00 - Install or update packages (if needed), eval=FALSE}
+install.packages("tidyverse")
+install.packages("openxlsx")
+install.packages("dplyr")
+install.packages("ggplot2")
+install.packages("ggpubr")
+install.packages("rstatix")
+install.packages("shiny")
+install.packages("colourPicker")
+install.packages("ggbreak")
+install.packages("ggbeeswarm")
+install.packages("ggpattern")
+install.packages("svglite")
+install.packages("gtools")
+```
+########################################################################################################################################
+### [**Chunk 0 - Load packages and set working directory**]
+###### [**DO NOT EDIT**]
+########################################################################################################################################
+
+```{r Chunk 0 - Load packages and set working directory, message=FALSE}
+library(tidyverse)
+library(openxlsx)
+library(dplyr)
+library(ggplot2)
+library(ggpubr)
+library(rstatix)
+library(shiny)
+library(colourpicker)
+library(ggbreak)
+library(ggbeeswarm)
+library(ggpattern)
+library(scales)
+library(svglite)
+library(gtools)
+options(scipen = 999)                  # Converts all numbers to standard notation
+```
+
+########################################################################################################################################
+### [**Chunk 1 - Open data file and set Dynamic Variables**]
+###### [**EDIT**]
+########################################################################################################################################
+
+```{r Chunk 1 - Open data file, set Conditions, and set Condition order}
+# Open data file with openxlsx and create an object
+IE_file_path_save <- "/Pathway/to/my/file"           # EDIT (CRITICAL): List the pathway to the raw data file [excluding the file]
+IE_file_path_data <- paste0(IE_file_path_save, "/", 
+                            "Excel_File_Name.xlsx")  # EDIT (CRITICAL): List the pathway to the raw data file [including the file]
+IE_data_sheet <- "Flow"                            # EDIT (CRITICAL): List the name of the sheet containing data (avoid special characters)
+IE_aesthetics_sheet <- "Aesthetic_variables"       # EDIT (CRITICAL): List the name of the sheet containing aesthetic variables
+IE_Date <- "26.08.26"                              # EDIT (CRITICAL): List the date (used in final file name)
+IE_Experiment <- "Flow"                            # EDIT (CRITICAL): List the experiment (used in final file name)
+IE_Stain <- "SBA_PNA_VVA"                          # EDIT (CRITICAL): List the stain (used in final file name)
+IE_Group <- "Untransfected"                        # EDIT (CRITICAL): List the analysis group (used in final file name)
+IE_Graph <- "Grouped_Bar-Dot_Plot"                 # EDIT (OPTIONAL): List the stats and graph types (used in final file name)
+
+IE_plot_name <- paste0(IE_Date, "_",                 # Create the file name to save the plot
+                       IE_Experiment, "_",           # Call the IE_Experiment variable
+                       IE_Stain, "_",                # Call the IE_Stain variable
+                       IE_Group, "_",                # Call the IE_Group variable
+                       IE_Graph)                     # Call the IE_Graph variable
+  #e.g. "26.08.26_Flow_PNA_Untransfected_Grouped_Bar-Dot_Plot"
+
+A00_raw_data <- read.xlsx(IE_file_path_data,          # Import the raw data sheet
+                        sheet = IE_data_sheet,        # Call the sheet dynamic variable
+                        cols = 6:9,                 # EDIT (CRITICAL): List the range of columns containing data
+                        rows = 149:227              # EDIT (OPTIONAL): List the range of rows containing data
+                        )
+
+M00_aesthetic_variables <- read.xlsx(IE_file_path_data,  # Import the aesthetic variables sheet
+                        sheet = IE_aesthetics_sheet,     # Call the sheet dynamic variable
+                        cols = 3:9,                    # EDIT (CRITICAL): List the range of columns containing aesthetic variables
+                        rows = 3:39                    # EDIT (OPTIONAL): List the range of rows containing aesthetic variables
+                        )
+
+# Set dynamic variables
+M01_Sort_Column_0 <- "Factor"              # EDIT (CRITICAL): Aesthetic variables column names: cohorts vs. groups
+M01_Sort_Column_1 <- "Dynamic_Variable"    # EDIT (CRITICAL): Aesthetic variables column names: dynamic variables
+M01_Sort_Column_2 <- "Condition"           # EDIT (CRITICAL): Aesthetic variables column names: cohorts vs. experimental groups (e.g. stain vs. cell type)
+M01_light_color <- "M_light_color"         # EDIT (CRITICAL): Aesthetic variables column names: light colors (inside of bars/shapes)
+M01_dark_color <- "M_dark_color"           # EDIT (CRITICAL): Aesthetic variables column names: dark colors (outline of shapes)
+M01_dot_shape <- "M_dot_shape"             # EDIT (CRITICAL): Aesthetic variables column names: dot shapes
+M01_bar_pattern <- "M_bar_pattern"         # EDIT (CRITICAL): Aesthetic variables column names: bar patterns
+
+DV01_Condition_Column_1 <- "Lectin"      # EDIT (CRITICAL): Data column names: Cohorts (e.g. stain)
+DV01_Condition_Column_2 <- "Cells"       # EDIT (CRITICAL): Data column names: experimental groups (e.g. "Cells")
+DV01_Data_Column <- "FC"                 # EDIT (CRITICAL): Data column names: data values
+
+L01_variables <- list(                 # Create a list of variables for creating the graph (saved at the end)
+  Date = IE_Date,                      # Call the value from the "IE_Date" variable set earlier
+  Experiment = IE_Experiment,          # Call the value from the "IE_Experiment" variable set earlier
+  Stain = IE_Stain,                    # Call the value from the "IE_Stain" variable set earlier
+  Group = IE_Group,                    # Call the value from the "IE_Group" variable set earlier
+  Graph = IE_Graph,                    # Call the IE_Graph variable
+  G_Graph_Title = NULL,              # EDIT (CRITICAL): Set the dynamic variable for the title of the graph (NULL for no title)
+  G_X_Axis_Title = NULL,             # EDIT (CRITICAL): Set the dynamic variable for the X axis title {NULL for no title}
+  G_X_Axis_Labels = FALSE,           # EDIT (CRITICAL): Set the dynamic variable to show X axis labels 
+  G_Y_Axis_Title = NULL,             # EDIT (CRITICAL): Set the dynamic variable for the Y axis title {NULL for no title}
+  G_Y_Dashed_Line = TRUE,            # EDIT (CRITICAL): Add a horizontal dashed line?
+  G_Log_Y_Axis = FALSE               # EDIT (CRITICAL): Toggle Y axis scale [FALSE = linear scale; TRUE = logarithmic scale]
+)
+```
+
+########################################################################################################################################
+### [**Chunk 2 - Organize data frames and create simple summary statistics**]{.underline}
+###### [**DO NOT EDIT**]
+########################################################################################################################################
+
+```{r Chunk 2 - Organize data frames and create simple summary statistics}
+A01_sub_data <- A00_raw_data                                                  # Make a copy of the data frame containing raw data
+
+M01_Condition_1_Variables <- M00_aesthetic_variables %>%                      # Separate the joined aesthetic variables data frame
+  filter(.data[[M01_Sort_Column_0]] == DV01_Condition_Column_1) %>%           # Filter by values in the "Factor" column, cohort variables
+  select(-any_of(c(M01_dot_shape)))                                           # Remove M01_dot_shape and M01_Sort_Column_1
+L01_Group_1_Order <- M01_Condition_1_Variables[[M01_Sort_Column_2]]           # Create a list specifying the order of cohort variables (e.g. stain)
+
+M01_Condition_2_Variables <- M00_aesthetic_variables %>%                      # Separate the joined aesthetic variables data frame
+  filter(.data[[M01_Sort_Column_0]] == DV01_Condition_Column_2)               # Filter by values in the "Factor" column, group variables
+L01_Group_2_Order <- M01_Condition_2_Variables[[M01_Sort_Column_2]]           # Create a list specifying the order of group variables (e.g. cell type)
+
+pwalk(                                                                        # Assign dynamic variable names from M01_Condition_2_Variables
+  list(                                                                       #   to the global environment to use later
+    M01_Condition_2_Variables[[M01_Sort_Column_1]],                           # Extract M01_Sort_Column_1 for M01_Condition_2_Variables
+    M01_Condition_2_Variables[[M01_Sort_Column_2]]                            # Extract M01_Sort_Column_2 for M01_Condition_2_Variables
+  ), 
+  function(dyn_var, val) {                                                    # Map each variable name to its value
+    assign(dyn_var, val, envir = .GlobalEnv)                                  # Assign each dynamic variable name its value in global environment
+  }
+)
+pwalk(                                                                        # Assign dynamic variable names from M01_Condition_1_Variables
+  list(                                                                       #   to the global environment to use later
+    M01_Condition_1_Variables[[M01_Sort_Column_1]],                           # Extract M01_Sort_Column_1 for M01_Condition_1_Variables
+    M01_Condition_1_Variables[[M01_Sort_Column_2]]                            # Extract M01_Sort_Column_2 for M01_Condition_1_Variables
+  ), 
+  function(dyn_var, val) {                                                    # Map each variable name to its value
+    assign(dyn_var, val, envir = .GlobalEnv)                                  # Assign each dynamic variable name its value in global environment
+  }
+)
+colnames(M01_Condition_1_Variables)[                                    # Rename a column in M01_Condition_1_Variables
+  colnames(M01_Condition_1_Variables) == M01_Sort_Column_2              # Change M01_Sort_Column_2 to DV01_Condition_Column
+] <- DV01_Condition_Column_1
+
+colnames(M01_Condition_2_Variables)[                                    # Rename a column in M01_Condition_1_Variables
+  colnames(M01_Condition_2_Variables) == M01_Sort_Column_2              # Change M01_Sort_Column_2 to DV01_Condition_Column
+] <- DV01_Condition_Column_2
+
+A01_sub_data[[DV01_Condition_Column_1]] <- factor(                    # Assign DV01_Condition_Column_1 as a factor
+  A01_sub_data[[DV01_Condition_Column_1]],                            # Call DV01_Condition_Column_1 from A01_sub_data
+  levels = L01_Group_1_Order)                                         # Assign levels (order) by L01_Group_1_Order
+
+A01_sub_data[[DV01_Condition_Column_2]] <- factor(                    # Assign DV01_Condition_Column_2 as a factor
+  A01_sub_data[[DV01_Condition_Column_2]],                            # Call DV01_Condition_Column_2 from A01_sub_data
+  levels = L01_Group_2_Order)                                         # Assign levels (order) by L01_Group_2_Order
+
+A01_sub_data[[DV01_Data_Column]] <- as.numeric(                       # Set the DV01_Data_Column values as numeric
+  as.character(A01_sub_data[[DV01_Data_Column]]))
+
+B01_summary <- A01_sub_data %>%                           # Create a new data frame called B02_summary
+  group_by(.data[[DV01_Condition_Column_1]], 
+           .data[[DV01_Condition_Column_2]]) %>%          # Set the columns to sort the groups by
+  summarise(                                              # Summarize these parameters for each group
+    Mean = mean(.data[[DV01_Data_Column]]),               # Calculate the mean value of each group
+    n = n(),                                              # Calculate the number of samples in each group
+    SD = sd(.data[[DV01_Data_Column]]),                   # Calculate the standard deviation of each group
+    SE = SD / sqrt(n),                                    # Calculate the standard error of each group
+    Min = min(.data[[DV01_Data_Column]]),                 # Calculate the minimum value of each group
+    Max = max(.data[[DV01_Data_Column]])                  # Calculate the maximum value of each group
+  )
+
+B02_summary <- B01_summary %>%                            # Create a new data frame to include aesthetic variables 
+  left_join(M01_Condition_2_Variables,                    # Join aesthetic variables to B01_summary 
+            by = DV01_Condition_Column_2) %>%             # Join aesthetic variables to B01_summary 
+  select(-any_of(c(M01_Sort_Column_0)))                   # Remove M01_Sort_Column_0
+
+B02_summary[[DV01_Condition_Column_1]] <- factor(                    # Assign DV01_Condition_Column_1 as a factor
+  B02_summary[[DV01_Condition_Column_1]],                            # Call DV01_Condition_Column_1 from A01_sub_data
+  levels = L01_Group_1_Order)                                        # Assign levels (order) by L01_Group_1_Order
+
+B02_summary[[DV01_Condition_Column_2]] <- factor(                    # Assign DV01_Condition_Column_2 as a factor
+  B02_summary[[DV01_Condition_Column_2]],                            # Call DV01_Condition_Column_2 from A01_sub_data
+  levels = L01_Group_2_Order)                                        # Assign levels (order) by L01_Group_2_Order
+```
+
+########################################################################################################################################
+### [**Chunk 3 - Set dimensions of the graph**]{.underline}
+###### [**EDIT**]
+########################################################################################################################################
+
+```{r Chunk 3 - Set dimensions of the graph}
+L01_variables <- modifyList(                                          # Add to the L01_variables list
+  L01_variables, list(                                                # Use the list() function
+    G_position_dodge = 0.9,                                         # EDIT (OPTIONAL): Set the position dodge for bars
+    G_Ly_limit = 0,                                                 # EDIT (OPTIONAL): Set the lower y-limit of the graph (NA for R default)
+    G_Uy_limit = 150,                                             # EDIT (CRITICAL): Set the upper y-limit of the graph (NA for R default)
+    G_y_interval = if (isTRUE(L01_variables$G_Log_Y_Axis)) {          # Use log-based spacing if G_Log_Y_Axis = TRUE
+      10^(0:6)                                                        # Generates c(1, 10, 100, 1000, 10000, 100000, 1000000)
+      } else { NA                                                   # EDIT (OPTIONAL): Set the y-intervals (aka "breaks") (NA for R default)
+        },
+    G_y_labels = if (isTRUE(L01_variables$G_Log_Y_Axis)) {            # Use log-based labels if G_Log_Y_Axis = TRUE
+      function(x) { 
+        labs <- scales::label_log(base = 10)(x)                       # Creates default labels as 10^0, 10^1, 10^2, etc.
+        labs[x == 1 | x == 0] <- "0"                                  # Lists "0" for 10^0 (x = 1) or 0
+        labs[x == 10] <- "10"                                         # Lists "10" for 10^1 (x = 10)
+        return(labs)
+        } 
+      } else { NA #function(x) x / 1000                                 # EDIT (OPTIONAL): Set the y-axis labels after opening bracket (NA for R default)
+        },
+    G_h_y_intercept = (if (isTRUE(L01_variables$G_Y_Dashed_Line)) {   # Add a horizontal dashed line if G_Y_Dashed_Line = TRUE
+      B02_summary %>%                                                 # Call the B02_summary data frame
+        filter(.data[[M01_Sort_Column_1]] == "D_Exp_Group01") %>%   # EDIT (OPTIONAL): Filter M01_Sort_Column_1 for the dynamic variable in the string
+        pull(Mean)                                                    # Pull the Mean value from the Condition Column to place the line
+    } else { NULL                                                     # Ignore if G_Y_Dashed_Line = FALSE
+    }),
+    G_geom_point_size = 2,                                          # EDIT (OPTIONAL): Set size of data points on the plot
+    G_margins = c(5,1,5,1)                                          # EDIT (OPTIONAL): Set the margins of the plot in mm (top, right, bottom, left)
+  )
+)
+
+########################################################################################################################################
+###### ~DO NOT EDIT!~ ###### 
+
+G_Graph_Title <- L01_variables$G_Graph_Title                         # Turn G_Graph_Title into a usable value
+G_X_Axis_Title <- L01_variables$G_X_Axis_Title                       # Turn G_X_Axis_Title into a usable value
+G_Y_Axis_Title <- L01_variables$G_Y_Axis_Title                       # Turn G_Y_Axis_Title into a usable value
+G_X_Axis_Labels <- L01_variables$G_X_Axis_Labels                     # Turn G_X_Axis_Title into a usable value
+G_geom_point_size <- L01_variables$G_geom_point_size                 # Turn G_geom_point_size into a usable value
+G_position_dodge <- L01_variables$G_position_dodge                   # Turn G_position_dodge into a usable value
+
+G_y_limits <- local({                                                # Create a variable to set y-limits
+  G_Ly_limit <- L01_variables$G_Ly_limit                             # Extract lower bound limit
+  G_Uy_limit <- L01_variables$G_Uy_limit                             # Extract upper bound limit
+  if (is.null(G_Uy_limit) || is.na(G_Uy_limit)) {                    # Check if upper limit = NULL or NA
+    NULL                                                             # Set y-limits to NULL if NA or NULL
+  } else {                                                           # Use provided [lower, upper] values if limits are defined
+    c(G_Ly_limit, G_Uy_limit)
+  }
+})
+
+G_y_breaks <- local({                                                # Create a variable to set y-limits
+  breaks <- L01_variables$G_y_interval                               # Turn G_y_interval into a usable value
+  if (is.null(breaks) ||                                             # Check if G_y_interval is NULL
+      (is.atomic(breaks) && length(breaks) == 1 && is.na(breaks))    # Check if G_y_interval is length 1 or NA
+  ) { 
+    return(ggplot2::waiver())                                        # Set y-breaks to default waiver() if NULL or NA
+  } else { return(breaks)                                            # If breaks are defined, use provided values
+  }
+})
+
+G_y_labels <- local({                                                # Create a variable to set y-limits
+  raw <- L01_variables$G_y_labels                                    # Extract label setting from L01_variables
+  if (is.null(raw)) {                                                # If NULL, use default waiver()
+    return(ggplot2::waiver()) 
+  } else if (is.function(raw)) {                                     # If custom labeller function (e.g.function(x) x / 1000)
+    return(raw)                                                      # Keep function intact
+  } else if (is.atomic(raw) && any(is.na(raw))) {                    # If atomic vector containing NA use default waiver()
+    return(ggplot2::waiver())
+  } else if (is.list(raw)) {                                         # If passed as a list (e.g. c() with expressions)
+    flat <- do.call(c, raw)                                          # Flatten list elements
+    if (any(is.na(flat))) return(ggplot2::waiver())                  # Check if flattened list contains NA
+    return(flat)                                                     # Return flattened vector/expressions
+  } else { return(raw)                                               # If no other criteria are met, use the provided values
+  }
+})
+```
+
+########################################################################################################################################
+### [**Chunk 4 - Create the Graph**]{.underline}
+###### [**EDIT**]
+########################################################################################################################################
+
+```{r - Chunk 4 - Create the Graph}
+G00_Grouped_SuperPlot <- ggplot(                                  # Create the grouped bar chart using ggdotplot function
+  mapping = aes(                                                   # Map aesthetics to the dynamic variables
+    x = .data[[DV01_Condition_Column_1]],                          # Set the x-axis to DV01_Condition_Column_1
+    fill = .data[[DV01_Condition_Column_2]],                       # Set the fill parameters to match DV01_Condition_Column_2
+    color = .data[[DV01_Condition_Column_2]],                      # Set the colors to match DV01_Condition_Column_2
+    shape = .data[[DV01_Condition_Column_2]]                       # Set the shapes to match DV01_Condition_Column_2
+  )) +
+  geom_col_pattern(                                                # Add bars displaying the average value of each group
+    data = B02_summary,                                            # Call data from the B02_summary data frame
+    aes(y = Mean,                                                  # Set the Y value of each bar to the mean of each group
+        fill = .data[[DV01_Condition_Column_2]],                   # Fill bars from DV01_Condition_Column_2
+        color = .data[[DV01_Condition_Column_2]],                  # Fill bar outlines from DV01_Condition_Column_2
+        pattern = .data[[DV01_Condition_Column_2]],                # Fill patterns from DV01_Condition_Column_2
+        pattern_color = .data[[DV01_Condition_Column_2]]           # Fill pattern colors from DV01_Condition_Column_2
+        ),
+    position = position_dodge(width = G_position_dodge),           # Call G_position_dodge to offset groups of bars
+    linewidth = 1,                                               # EDIT (OPTIONAL): Set the width of the bar outlines
+    width = 0.8,                                                 # EDIT (OPTIONAL): Set the width of the bars
+    pattern_alpha = 0.6,                                         # EDIT (OPTIONAL): Set opacity of the pattern
+    pattern_density = 0.1,                                       # EDIT (OPTIONAL): Set the pattern density
+    pattern_spacing = 0.01                                       # EDIT (OPTIONAL): Set the pattern spacing
+    ) +
+  geom_quasirandom(data = A01_sub_data,                            # Add jittered individual data points using quasi-random positioning
+                   aes(x = .data[[DV01_Condition_Column_1]],       # Set the x-axis to the conditions column dynamic variable
+                       y = .data[[DV01_Data_Column]],              # Set the y-axis to the numerical data column dynamic variable
+                       fill = after_scale(color)                   # Match point fill color to outline color after scale evaluation
+                   ),
+    dodge.width = G_position_dodge,                                # Set the x-axis position to match the bars and points
+    size = L01_variables$G_geom_point_size,                        # Set size of the points from G_geom_point_size
+    width = 0.15,                                                # EDIT (OPTIONAL): Set spacing of points from the center
+    alpha = 1,                                                   # EDIT (OPTIONAL): Set the spacing of data points
+  ) +
+  geom_errorbar(                                                   # Add error bars
+    data = B02_summary,                                            # Call data from B02_summary 
+    aes(x = .data[[DV01_Condition_Column_1]],                      # Set the x-axis to DV01_Condition_Column_1
+        y = Mean,                                                  # Set the Y value of each error bar to the mean of each group
+        group = .data[[DV01_Condition_Column_2]],                  # Group by DV01_Condition_Column_2
+        ymin = Mean - SE,                                          # Set the minimum y value of the error bar
+        ymax = Mean + SE                                           # Set the maximum y value of the error bar
+        ),
+    position = position_dodge(width = G_position_dodge),           # Set the x-axis location to match the bars and points
+    color = "black",                                             # EDIT (OPTIONAL): Set the colors for error bars
+    width = 0.5,                                                 # EDIT (OPTIONAL): Set the width of the error bar ends
+    linewidth = 1,                                               # EDIT (OPTIONAL): Set the thickness of the error bar line
+    ) +
+  scale_shape_manual(values = B02_summary$M_dot_shape) +           # Use the R shapes specified rather than R defaults
+  scale_fill_manual(values = B02_summary$M_light_color) +          # Use the bar colors specified rather than R defaults
+  scale_color_manual(values = B02_summary$M_dark_color) +          # Use the bar outline colors specified rather than R defaults
+  scale_pattern_manual(values = B02_summary$M_bar_pattern) +       # Use the patterns specified rather than R defaults
+  scale_pattern_color_manual(values = B02_summary$M_dark_color) +  # Use the patterns colors specified rather than R defaults
+  theme_classic() +                                                # Set the appearance of the chart- see above for theme options
+  labs(title = G_Graph_Title,                                      # Set the title of the graph from the dynamic variable
+       x = G_X_Axis_Title,                                         # Set the title of the x-axis from the dynamic variable 
+       y = G_Y_Axis_Title,                                         # Set the title of the y-axis from the dynamic variable
+  ) + 
+  (if (L01_variables$G_Log_Y_Axis) {
+    list( scale_y_log10(                                      # Use a logarithmic y-axis scale if G_Log_Y_Axis = TRUE
+      expand = expansion(mult = c(0, 0.05)),                  # Set the amount of white space around the y-axis
+      limits = G_y_limits,                                    # Call the range of the y-axis from the dynamic variable
+      breaks = G_y_breaks,                                    # Call the height and tick mark intervals of the y-axis
+      labels = G_y_labels                                     # Call the y-axis labels that occur at the breaks
+      ),
+    annotation_logticks(                                      # For a logarithmic y-axis, control y-axis ticks
+      sides = "l",                                            # Add tick marks only to the left axis
+      short = unit(-0.1, "cm"),                             # EDIT (OPTIONAL): Set the size of short tick marks
+      mid = unit(-0.2, "cm"),                               # EDIT (OPTIONAL): Set the size of medium tick marks
+      long = unit(-0.3, "cm"),                              # EDIT (OPTIONAL): Set the size of long tick marks
+      outside = TRUE                                          # Apply the tick marks
+      )
+    )
+  } else { scale_y_continuous(                                # Use a linear y-axis scale if G_Log_Y_Axis = FALSE
+      expand = c(0, 0),                                       # Set the amount of white space around the y-axis
+      limits = G_y_limits,                                    # Call the range of the y-axis from the dynamic variable
+      breaks = G_y_breaks,                                    # Call the height and tick mark intervals of the y-axis
+      labels = G_y_labels                                     # Call the y-axis labels that occur at the breaks
+  )}
+  ) +
+  theme(                                                      # Set appearance of specific components of the chart
+    legend.position = "none",                                 # Remove the legend from the plot
+    axis.ticks.y = element_line(linewidth = 1),             # EDIT (OPTIONAL): Set the width of y-axis ticks
+    axis.line = element_line(linewidth = 1),                # EDIT (OPTIONAL): Set the width of axis lines
+    plot.title = if(is.null(L01_variables$G_Graph_Title))     # Check if G_Graph_Title = NULL
+      element_blank() else element_text(                      # Remove title if G_Graph_Title = NULL in Chunk 1
+        face = "bold",                                      # EDIT (OPTIONAL): Set text weight
+        size = 20,                                          # EDIT (OPTIONAL): Set text size
+        color = "black",                                    # EDIT (OPTIONAL): Set text color
+        hjust = NULL                                        # EDIT (OPTIONAL): Set horizontal justification (0.5 to center)
+        ),
+    axis.title.x = if(is.null(L01_variables$G_X_Axis_Title))  # Set visual parameters of the c-axis title
+      element_blank() else element_text(                      # Remove title if G_X_Axis_Title = NULL in Chunk 1
+        face = "bold",                                      # EDIT (OPTIONAL): Set text weight
+        size = 20,                                          # EDIT (OPTIONAL): Set text size
+        color = "black",                                    # EDIT (OPTIONAL): Set text color
+        ),
+    axis.text.x = if(L01_variables$G_X_Axis_Labels) 
+      element_text(                                           # Set visual parameters of the axis text
+        face = "bold",                                      # EDIT (OPTIONAL): Set text weight
+        size = 20,                                          # EDIT (OPTIONAL): Set text size
+        color = "black",                                    # EDIT (OPTIONAL): Set text color
+        angle = 0                                           # EDIT (OPTIONAL): Set text rotation
+      ) else element_blank(),                                 # Remove if G_X_Axis_Labels <- NULL in Chunk 1
+    axis.title.y = if(is.null(                                # Set visual parameters of the plot title
+      L01_variables$G_Y_Axis_Title))                          # Remove title if G_Y_Axis_Title <- NULL in Chunk 1
+      element_blank() else element_text(                      # Use these parameters if G_Y_Axis_Title <- "[title]" in Chunk 1
+        face = "bold",                                      # EDIT (OPTIONAL): Set text weight
+        size = 20,                                          # EDIT (OPTIONAL): Set text size
+        color = "black",                                    # EDIT (OPTIONAL): Set text color
+        margin = margin(r = 10),                              # Set margin between the title and y-axis values
+        ),
+    axis.text.y = element_text(                               # Set visual parameters of the y-axis text
+      face = "bold",                                        # EDIT (OPTIONAL): Set text weight
+      size = 12,                                            # EDIT (OPTIONAL): Set text size
+      color = "black",                                      # EDIT (OPTIONAL): Set text color
+      ),
+  plot.margin = unit(L01_variables$G_margins, "mm"),          # Call margins from the dynamic variable
+  ) +
+  (if (L01_variables$G_Y_Dashed_Line) {                       # Line at L01_variables$G_h_y_intercept if G_Y_Dashed_Line <- TRUE
+    geom_hline(yintercept = L01_variables$G_h_y_intercept,    # Call the Y-intercept value set in L01_variables
+               linetype = "dashed",                         # EDIT (OPTIONAL): Set the horizontal y-line type
+               color = "black",                             # EDIT (OPTIONAL): Set the horizontal y-line color
+               linewidth = 1)                               # EDIT (OPTIONAL): Set the horizontal y-line thickness
+    } else {NULL                                              # Exclude the line if V_Y_Dashed_Line <- FALSE
+      }) 
+
+G00_Grouped_SuperPlot                                     # View the graph
+```
+########################################################################################################################################
+### [**Chunk 6 - Save the plot and stats results**]{.underline}
+###### [**EDIT**]
+########################################################################################################################################
+
+```{r Chunk 6 - Save the plot}
+# Save the plot; available file type options: .pdf .tiff .png .jpeg
+L01_variables <- modifyList(                    # Add to the L01_variables list
+  L01_variables,
+  list(
+    S_plot_dpi = 400,                         # EDIT (OPTIONAL): Resolution in pixels [300 is typically good]
+    S_plot_width = 4,                         # EDIT (OPTIONAL): Width of the image
+    S_plot_height = 3,                        # EDIT (OPTIONAL): Height of the image
+    S_plot_units = "in"                       # EDIT (OPTIONAL): Units of the width and height. Available options: “in” or “cm”
+  ))
+
+ggsave(paste0(IE_file_path_save,                # Save the plot - call the path to the directory to save the file 
+              "/",                              # Separate the file path and the file name with a /
+              gsub(" ", "_",                    # Replace spaces with underscores
+                   IE_plot_name),               # Call the file name created in Chunk 1
+              ".tiff"),                       # EDIT (OPTIONAL): Specify the file type
+       plot = G00_Grouped_SuperPlot,            # Specify which plot to save
+       dpi = L01_variables$S_plot_dpi,          # Call the resolution in pixels [300 is typically good]
+       width = L01_variables$S_plot_width,      # Call width of the image
+       height = L01_variables$S_plot_height,    # Call the height of the plot 
+       units = L01_variables$S_plot_units       # Call the plot units
+)
+```
+```{r Chunk 6 - Save stats results and graph variables}
+S_stats_results <- "Stats_Results"      # EDIT (CRITICAL): List the name of the sheet to save summary results (sheet does not have to exist)
+
+# B02_summary
+B02_startCol <- 4        # EDIT (CRITICAL): List the start column to populate B02_summary to the Excel sheet
+B02_startRow <- 34       # EDIT (CRITICAL): List the start row to populate B02_summary to the Excel sheet
+# L01_variables
+L02_startCol <- 53       # EDIT (CRITICAL): List the start column to populate L02_variables to the Excel sheet
+L02_startRow <- 5        # EDIT (CRITICAL): List the start row to populate L02_variables to the Excel sheet
+
+IE_Group_ID <- paste0(IE_Experiment, "_", IE_Stain, "_", IE_Group)   # Create a "group ID" using dynamic variables from Chunk 1
+
+# Save results from B02_summary (simple summary stats)
+local({
+  S_workbook <- loadWorkbook(IE_file_path_data)                      # Load existing workbook
+  if (!(S_stats_results %in% sheets(S_workbook))) {                  # Check if sheet exists
+    addWorksheet(S_workbook, S_stats_results)                        # Create sheet if missing
+  }
+  writeData(                                                         # Insert the group 
+    S_workbook,                                                      # Call the workbook
+    sheet    = S_stats_results,                                      # Specify which sheet to add to 
+    x        = IE_Group_ID,                                          # List the experiment source of the populated calculations
+    startCol = B02_startCol,                                         # Call the column listed to add the group
+    startRow = B02_startRow                                          # Call the row listed to add the group
+  )
+  writeData(                                                         # Insert B02_summary into the Excel sheet
+    S_workbook,                                                      # Call the workbook
+    sheet    = S_stats_results,                                      # Specify which sheet to add to 
+    x        = B02_summary,                                          # Insert values from the B02_summary data frame
+    startCol = B02_startCol + 1,                                     # Add one row from the Column listed
+    startRow = B02_startRow - 1,                                   # EDIT (OPTIONAL); Subtract one row from the row listed (use if colNames = TRUE)
+    # startRow = B02_startRow,                                       # EDIT (OPTIONAL): Use the row listed (use if colNames = FALSE)
+    colNames = TRUE                                                # EDIT (OPTIONAL): Insert column names?
+  )
+  saveWorkbook(S_workbook, IE_file_path_data, overwrite = TRUE)      # Save workbook 
+})
+
+# Save graph variables stored in L01_variables 
+local({
+  S_workbook <- loadWorkbook(IE_file_path_data)                      # Load existing workbook
+  if (!(S_stats_results %in% sheets(S_workbook))) {                  # Check if sheet exists
+    addWorksheet(S_workbook, S_stats_results)                        # Create sheet if missing
+  }
+  L02_export_variables <- enframe(                                   # Convert the list into a data frame
+    L01_variables,                                                   # Call the L01_variables list
+    name = "Variable",                                             # EDIT (OPTIONAL): Label the column storing the variable names
+    value = "Value"                                                # EDIT (OPTIONAL): Label the column storing the variable values
+    ) %>%
+    mutate(                                                          # Format values in the Value column
+      Value = sapply(Value, function(v) {                            # Search each variable for "complex" values
+        if (is.null(v)) {                                            # Check for NULL values
+          return("NULL")                                             # Populate "NULL" (rather than 0 or a blank cell)
+        } else if (is.function(v)) {                                 # Check if the variable contains an R function
+          return(paste(deparse(v), collapse = " "))                  # Convert the function into a continuous string
+        } else if (length(v) == 0) {                                 # Check if the variable is an empty vector or structure
+          return("NULL")                                             # Output the literal text string "NULL"
+        } else {                                                     # Handle standard atomic values or multi-element vectors
+          return(paste(v, collapse = ", "))                          # Combine all vector elements into a single comma-separated string
+        }
+      })
+    )
+  writeData(
+    wb       = S_workbook,                                           # Call the workbook
+    sheet    = S_stats_results,                                      # Note: ensure sheet parameter receives the sheet name string
+    x        = L02_export_variables,                                 # Specify the variable that will be saved to the Excel sheet
+    startCol = L02_startCol,                                         # Call the location of the start column
+    startRow = L02_startRow,                                         # Call the location of the start row
+    colNames = TRUE                                                # EDIT (OPTIONAL): Insert column names?
+    )
+  saveWorkbook(S_workbook, IE_file_path_data, overwrite = TRUE)      # Save workbook 
+})
+```
