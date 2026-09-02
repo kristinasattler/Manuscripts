@@ -1,4 +1,4 @@
-# 1.4 - Student's t-test and create an aligned bar plot (Figure 3, 4)
+# 1.4 - Student's t-test and create a SuperPlot (Figure 3, 4)
 
 # Paste the code below into R Markdown file: 
 # Only edit lines with "EDIT:" at the start of the comment
@@ -61,13 +61,14 @@ IE_Date <- "26.08.26"                                # EDIT (CRITICAL): List the
 IE_Experiment <- "Flow"                              # EDIT (CRITICAL): List the experiment (used in final file name)
 IE_Stain <- "PNA"                                    # EDIT (CRITICAL): List the stain (used in final file name)
 IE_Group <- "Transfected"                            # EDIT (CRITICAL): List the analysis group (used in final file name)
+IE_Graph <- "t-test_SuperPlot"                       # EDIT (OPTIONAL): List the stats and graph types (used in final file name)
 
 IE_plot_name <- paste0(IE_Date, "_",                 # Create the file name to save the plot
                        IE_Experiment, "_",           # Call the IE_Experiment variable
                        IE_Stain, "_",                # Call the IE_Stain variable
                        IE_Group, "_",                # Call the IE_Group variable
-                       "t-test_Bar-Dot_Plot")      # EDIT (OPTIONAL): List the stats and graph types
-                                                     # e.g. "26.08.25_Flow_PNA_Transfected_t-test_Bar-Dot_Plot"
+                       IE_Graph)                     # Call the IE_Graph variable
+                       # e.g. "26.08.26_Flow_PNA_Transfected_t-test_SuperPlot"
 
 A00_raw_data <- read.xlsx(IE_file_path_data,             # Import the raw data sheet
                         sheet = IE_data_sheet,           # Call the sheet dynamic variable
@@ -98,7 +99,7 @@ L01_variables <- list(                 # Create a list of variables for creating
   Experiment = IE_Experiment,          # Call the value from the "IE_Experiment" variable set earlier
   Stain = IE_Stain,                    # Call the value from the "IE_Stain" variable set earlier
   Group = IE_Group,                    # Call the value from the "IE_Group" variable set earlier
-  Graph = "t-test_Bar-Dot_Plot",       # Set the analysis and graph type
+  Graph = IE_Graph,                    # Call the IE_Graph variable
   G_Graph_Title = NULL,              # EDIT (CRITICAL): Set the dynamic variable for the title of the graph (NULL for no title)
   G_X_Axis_Title = NULL,             # EDIT (CRITICAL): Set the dynamic variable for the X axis title {NULL for no title}
   G_X_Axis_Labels = FALSE,           # EDIT (CRITICAL): Set the dynamic variable to show X axis labels 
@@ -274,7 +275,7 @@ G_y_labels <- local({                                                # Create a 
 ########################################################################################################################################
 
 ```{r Chunk 5 - Create the Graph}
-G00_aligned_dot_plot <- ggplot(                               # Create the aligned dot plot using ggdotplot function
+G00_SuperPlot <- ggplot(                                      # Create the aligned dot plot using ggdotplot function
   data = A01_sub_data,                                        # Call the data frame
   mapping = aes(x = .data[[DV01_Condition_Column]]),          # Set the x-axis to the conditions column dynamic variable
   binwidth = 1                                              # EDIT (OPTIONAL): Control the spacing between groups
@@ -390,7 +391,7 @@ G00_aligned_dot_plot <- ggplot(                               # Create the align
     } else {NULL                                              # Exclude the line if V_Y_Dashed_Line <- FALSE
       }) 
 
-G00_aligned_dot_plot                                        # View the graph
+G00_SuperPlot                                               # View the graph
 print(B02_summary)                                          # View B02_summary
 print(C03_Results)                                          # View C03_Results
 ```
@@ -416,7 +417,7 @@ ggsave(paste0(IE_file_path_save,                # Save the plot - call the path 
               gsub(" ", "_",                    # Replace spaces with underscores
                    IE_plot_name),               # Call the file name created in Chunk 1
               ".tiff"),                       # EDIT (OPTIONAL): Specify the file type
-       plot = G00_aligned_dot_plot,             # Specify which plot to save
+       plot = G00_SuperPlot,                    # Specify which plot to save
        dpi = L01_variables$S_plot_dpi,          # Call the resolution in pixels [300 is typically good]
        width = L01_variables$S_plot_width,      # Call width of the image
        height = L01_variables$S_plot_height,    # Call the height of the plot 
